@@ -1,0 +1,32 @@
+---
+const { url, title } = Astro.props;
+---
+
+{title && <>{title}</>}
+
+<div class="instagram-wrapper">
+  <blockquote
+    class="instagram-media"
+    data-instgrm-permalink={url}
+    data-instgrm-version="14"
+    data-instgrm-captioned>
+  </blockquote>
+</div>
+
+<script async src="https://www.instagram.com/embed.js"></script>
+
+<style>
+.instagram-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.instagram-media {
+  width: 100% !important;
+  max-width: 900px !important; /* Increase width */
+  min-width: 320px !important;
+  margin: 0 auto !important;
+}
+</style>

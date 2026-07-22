@@ -1,0 +1,183 @@
+---
+title: "Chapter 0: Randomness"
+description: "Chapter 0: Randomness"
+---
+## Random Walks and Object-Oriented Programming
+
+I downloaded visual studio code with p5.visual and live server plugins.
+
+This study explores the implementation of a two-dimensional random walk algorithm as an introduction to object-oriented programming (OOP) and procedural animation. A random walk is a mathematical process in which an object moves by taking a sequence of random steps, making it a simple but powerful model for simulating natural phenomena such as particle diffusion, animal movement, and stochastic systems.
+
+The implementation begins by designing a Walker class responsible for storing the object's position and defining its behavior. The walker is initialized at the center of the canvas and repeatedly executes two primary methods:
+
+step() — randomly selects the next movement direction.
+show() — renders the walker on the canvas.
+
+The movement is determined by generating uniformly distributed random numbers, giving every possible direction an equal probability. Initially, the walker is restricted to four directions (up, down, left, and right), demonstrating the fundamentals of discrete random motion. The study then explores more advanced variations, including diagonal movement and continuous motion by allowing floating-point step sizes.
+
+Beyond demonstrating randomness, this exercise introduces key object-oriented concepts such as encapsulation, constructors, object state, and class methods. The separation between the walker's internal data (its position) and its behavior (movement and rendering) provides a clean and extensible architecture for future simulations.
+
+This study serves as a foundation for more sophisticated generative systems, where random walks can be expanded into biased walks, Perlin noise motion, particle systems, autonomous agents, and other procedural animation techniques used in interactive graphics and game development.
+
+```javascript
+
+// The Nature of Code
+// Daniel Shiffman
+// http://natureofcode.com
+
+let walker;
+
+function setup() {
+  createCanvas(640, 240);
+  walker = new Walker();
+  background(255);
+}
+
+function draw() {
+  walker.step();
+  walker.show();
+}
+
+class Walker {
+  constructor() {
+    this.x = width / 2;
+    this.y = height / 2;
+  }
+
+  show() {
+    stroke(0);
+    point(this.x, this.y);
+  }
+
+  step() {
+    const choice = floor(random(4));
+    if (choice == 0) {
+      this.x++;
+    } else if (choice == 1) {
+      this.x--;
+    } else if (choice == 2) {
+      this.y++;
+    } else {
+      this.y--;
+    }
+  }
+}
+```
+
+### Objective
+
+Explore how changing the rendering and movement of the original random walker affects the visual output.
+
+### Changes
+
+- Changed the background from **white** to **black** to better highlight the generated shapes.
+- Replaced the `point()` drawing with `arc()` to create larger and more expressive marks.
+- Made the size of each arc depend on the walker's current position using `x²` and `y²`.
+- Replaced the fixed black stroke with a random grayscale value for each arc.
+- Modified the movement probabilities so the walker moves to the **right** more often, creating a directional bias.
+- Added two extra walker instances (`walker1` and `walker2`) for future experiments with multiple walkers.
+
+### Observations
+
+These small changes transformed the original random walk into a generative drawing system. Instead of leaving a trail of points, the walker now creates evolving patterns with changing sizes, tones, and a noticeable drift toward the right side of the canvas.
+
+```javascript
+
+let walker;
+
+function setup() {
+  createCanvas(640, 240);
+  walker = new Walker();
+  walker1 = new Walker();
+  walker2 = new Walker();
+
+  background(0);
+}
+
+function draw() {
+  walker.step();
+  walker.show();
+}
+
+class Walker {
+  constructor() {
+    this.x = width / 2;
+    this.y = height / 2;        
+  }
+
+  show(col) {
+    stroke(
+  random((PI*random(100)))
+);
+    arc(this.x, this.y , (PI * this.x * this.x) /10000, (PI * this.y * this.y) /10000, 0, PI/PI);
+  }
+
+  step() {
+    const choice = floor(random(5));
+    if (choice <= 1) {
+      this.x++;
+    } else if (choice == 2) {
+      this.x--;
+    } else if (choice == 3) {
+      this.y++;
+    } else {
+      this.y--;
+    }
+    if(this.x> width){
+        this.x = 0
+        this.y = mouseY;
+    } 
+  }
+}
+```
+
+
+
+# Gaussian Distribution
+
+
+```javascript
+// The Nature of Code
+// Daniel Shiffman
+// http://natureofcode.com
+
+function setup() {
+  createCanvas(640, 240);
+  background(255);
+}
+
+function draw() {
+  // A normal distribution with mean 320 and standard deviation 60
+  let x = randomGaussian(320, 60);
+  noStroke();
+  fill(0, 10);
+  circle(x, 120, 16);
+}
+
+```
+
+
+
+
+<iframe src="https://editor.p5js.org/natureofcode/full/Yk_eSiNOR"></iframe>
+
+```javascript
+// The Nature of Code
+// Daniel Shiffman
+// http://natureofcode.com
+
+function setup() {
+  createCanvas(640, 240);
+  background(255);
+}
+
+function draw() {
+  // A normal distribution with mean 320 and standard deviation 60
+  let x = constrain(randomGaussian(200, 30), 0, 255)
+  let y = constrain(randomGaussian(60, 60), 0, 255)
+  noStroke();
+  fill(x, 0,y);
+  circle(random(640),random(240), random(40));
+}
+```
+

@@ -1,0 +1,219 @@
+---
+title: Strudel studies
+description: A guide in my new Starlight docs site.
+---
+
+### Day 1
+
+I started using strudel to create simple repetitive musical piezes.
+the cpm is used to track how fast the song plays using the time of each cicle instead of the times of the notes.
+
+```javascript
+setcpm(95)
+
+let drum = stack(
+  s("bd").beat("0,3,8,11",16),
+  s("cp").beat("4,12",16),
+  s("hh").beat("0,2,4,6,8,10,12,14",16),
+  s("oh").beat("7,15",16)
+).bank("RolandTr909");
+
+$drum: drum
+
+let harmony =
+  chord("<Em Em C G Am B7>")
+    .voicing()
+    .slow(2)
+    .s("gm_overdriven_guitar")
+    .gain(0.9);
+
+$harmony: harmony
+```
+
+#After this initial exploration and with the help of AI, I managed to create a more complex piece
+
+```javascript
+setcpm(25)
+
+//--------------------------------------------------
+// DRUMS
+//--------------------------------------------------
+
+let kick = s("bd")
+  .beat("<0,8 0,3,8,11 0,2,3,6,8,10,11,14 0,2,3,6,8,10,11,14>",16)
+
+let snare = s("cp")
+  .beat("4,12",16)
+
+let hats = s("hh")
+  .beat("0,2,4,6,8,10,12,14",16)
+
+let open = s("oh")
+  .beat("<~ ~ 7,15 7,15>",16)
+
+let fill = s("cp")
+  .beat("<~ ~ ~ 12,13,14,15>",16)
+
+let drum = stack(
+  kick,
+  snare,
+  hats,
+  open,
+  fill
+).bank("RolandTr909")
+
+$drum: drum
+
+//--------------------------------------------------
+// RHYTHM GUITAR
+//--------------------------------------------------
+
+let rhythm =
+  chord("<Em Em Em Em G G D D C C Am Am Em Em B7 B7>")
+  .voicing()
+  .slow(4)
+  .s("gm_overdriven_guitar")
+  .gain(0.9)
+
+$rhythm: rhythm
+
+//--------------------------------------------------
+// BASS
+//--------------------------------------------------
+
+let bass =
+  note("<e2 e2 e2 e2 g2 g2 d2 d2 c2 c2 a1 a1 e2 e2 b1 b1>")
+  .slow(4)
+  .s("gm_fingered_bass")
+  .gain(1)
+
+$bass: bass
+
+//--------------------------------------------------
+// LEAD GUITAR
+//--------------------------------------------------
+
+let lead =
+  note("<~ ~ e5 g5 b5 g5 d6 b5 g5 e5 g5 a5 b5 d6 b5 g5 e5 r e6 d6 b5 g5 e5 r r r>")
+    .fast(2)
+    .s("gm_lead_8_bass_lead")
+    .gain(0.7);
+
+$lead: lead
+
+
+//--------------------------------------------------
+// PAD
+//--------------------------------------------------
+
+let pad =
+  chord("<Em G D C>")
+  .voicing()
+  .slow(16)
+  .s("gm_warm_pad")
+  .gain(0.35)
+
+$pad: pad
+
+```
+
+### Day 2
+
+After the initial exploration I decided to port one of my musical pieces done in MuseScore into strudel
+
+```javascript
+setcps(5/6)
+
+// BAR 1
+const bar1 = stack(
+  note("e3 g3 e3 g3 e3 g3 e3 g3")
+    .sound("gm_overdriven_guitar"),
+  stack(
+    sound("hh*8"),
+    sound("bd ~ bd ~"),
+    sound("~ sd ~ sd")
+  ),
+  note("g3").sound("organ"),
+  note("g1").sound("bass")
+)
+
+// BAR 2
+const bar2 = stack(
+  note("g4 d3 b2 g4 d3 b2 g4 d3")
+    .sound("gm_overdriven_guitar"),
+  stack(
+    sound("hh*8"),
+    sound("bd ~ bd ~"),
+    sound("~ sd ~ sd")
+  ),
+  note("d3").sound("organ"),
+  note("d1").sound("bass")
+)
+
+// BAR 3
+const bar3 = stack(
+  note("g3 c4 g3 c4 g3 c4 g3 c4")
+    .sound("gm_overdriven_guitar"),
+  stack(
+    sound("hh*8"),
+    sound("bd ~ bd ~"),
+    sound("~ sd ~ sd")
+  ),
+  note("d3").sound("organ"),
+  note("d1").sound("bass")
+)
+
+// BAR 4
+const bar4 = stack(
+  note("c4 g3 fs3 d3 c4 g3 fs3 d3")
+    .sound("gm_overdriven_guitar"),
+  stack(
+    sound("hh*8"),
+    sound("bd ~ bd ~"),
+    sound("~ sd ~ sd")
+  ),
+  note("f3").sound("organ"),
+  note("f1").sound("bass")
+)
+// TRANSITION
+const transition = stack(
+  note("<e3 b3> <e3 b3> <e3 b3> <e3 b3> <f3 c4> <f3 c4> <f3 c4> <f3 c4>")
+    .sound("gm_overdriven_guitar"),
+  stack(
+    sound("hh*8"),
+    sound("bd ~ bd ~"),
+    sound("~ sd ~ sd")
+  ),
+  note("g1 e1").sound("bass")
+)
+
+cat(
+  // First riff
+  bar1,
+  bar2,
+  bar3,
+  bar4,
+
+  // Second riff
+  bar1,
+  bar2,
+  bar3,
+  bar4,
+
+  // Transition
+  transition
+
+)
+
+```
+
+With this I learned about the cat and stack funtions
+
+## cat()
+
+It plays secuentially
+
+## stack()
+
+It plays simultaneously
+
