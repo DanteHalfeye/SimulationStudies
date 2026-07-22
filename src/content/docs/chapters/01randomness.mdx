@@ -181,3 +181,1329 @@ function draw() {
 }
 ```
 
+## Design Challenge
+
+This week’s challenge is to design a single interactive generative experience in p5.js that explores uncertainty through different forms of randomness. Instead of illustrating ideas directly, the goal is to express concepts like possibility, trends, normality, exceptions, and influence through the behavior of the system itself.
+
+The sketch must combine at least three techniques (Random Walk, Probability Distributions, Gaussian Distribution, Lévy Flight, or Perlin Noise), remain autonomous, and allow visitors to influence the underlying probabilities rather than fully control the outcome. Every execution should feel unique while maintaining a consistent visual identity.
+
+### Sharks Events
+
+
+```javascript
+let t = 0;
+
+let hunterFish = null;
+
+let hunterChance = 0.01;   // 1%
+let hunterSpawned = false;
+
+let waterLevel;
+
+let blackFish = [];
+let redFish = [];
+let blueFish;
+
+function setup() {
+
+  createCanvas(800, 400);
+  noStroke();
+
+  waterLevel = height * 0.2;
+
+  blackFish = [];
+  redFish = [];
+
+  for (let i = 0; i < 15; i++) {
+
+    blackFish.push(
+      new BlackFish(
+        random(width),
+        random(waterLevel + 30, height - 30)
+      )
+    );
+
+  }
+
+  for (let i = 0; i < 5; i++) {
+
+    redFish.push(
+      new RedFish(
+        random(width),
+        random(waterLevel + 30, height - 30)
+      )
+    );
+
+  }
+
+  blueFish = new BlueFish(
+    width / 2,
+    random(waterLevel + 30, height - 30)
+  );
+
+}
+
+function draw() {
+
+  background(10, 30, 70);
+
+  //----------------------------------
+  // Water
+  //----------------------------------
+
+  for (let x = 0; x <= width; x += 4) {
+
+    let y =
+      height * 0.2 +
+      sin(x * 0.02 + t) * 18 +
+      sin(x * 0.05 + t * 1.3) * 8;
+
+    let n = noise(x * 0.01, t * 0.2);
+
+    fill(
+      20,
+      map(n, 0, 1, 80, 180),
+      map(n, 0, 1, 140, 255)
+    );
+
+    noStroke();
+    rect(x, y, 4, height - y);
+
+  }
+
+  //----------------------------------
+  // Gaussian shadows
+  //----------------------------------
+
+  for (let i = 0; i < 80; i++) {
+
+    let gx = randomGaussian(width / 2, width / 5);
+    let gy = randomGaussian(height * 0.75, 40);
+
+    fill(0, 0, 20, random(5,20));
+
+    ellipse(
+      gx,
+      gy,
+      abs(randomGaussian(10,5))
+    );
+  }
+
+  //----------------------------------
+  // Fish
+  //----------------------------------
+
+let allFish = [
+  ...blackFish,
+  ...redFish,
+  
+];
+  
+
+  for (let b of blackFish) {
+    b.update(redFish);
+    b.display();
+  }
+
+  for (let r of redFish) {
+    r.update(blackFish);
+    r.display();
+  }
+
+  blueFish.update(allFish);
+  blueFish.display();
+
+  if (
+    !hunterSpawned &&
+    frameCount % 600  == 0 &&
+    random() < hunterChance
+) {
+    hunterFish = new HunterFish(
+        random(width),
+        random(waterLevel + 30, height - 30)
+    );
+    hunterSpawned = true;
+
+
+  hunterSpawned = true;
+}
+
+if (hunterFish != null) {
+    hunterFish.update();
+
+    // It may have become null during update()
+    if (hunterFish != null) {
+        hunterFish.display();
+    }
+}
+
+  //----------------------------------
+
+  t += 0.02;
+
+}
+class Fish {
+
+  constructor(x, y, c, s) {
+    this.pos = createVector(x, y);
+    this.vel = p5.Vector.random2D();
+    this.speed = 2;
+    this.size = s;
+    this.col = c;
+  }
+
+  separate(fishes) {
+
+    let force = createVector(0, 0);
+    let count = 0;
+
+    for (let other of fishes) {
+
+      if (other === this) continue;
+
+      let d = p5.Vector.dist(this.pos, other.pos);
+      let minDist = (this.size + other.size) * 0.8;
+
+      if (d > 0 && d < minDist) {
+
+        let diff = p5.Vector.sub(this.pos, other.pos);
+
+        diff.normalize();
+        diff.div(d);
+
+        force.add(diff);
+        count++;
+
+      }
+    }
+
+    if (count > 0) {
+
+      force.div(count);
+      force.setMag(0.8);
+
+      this.vel.add(force);
+
+    }
+  }
+
+  move() {
+
+    this.pos.add(this.vel);
+
+    if (this.pos.x < -this.size)
+      this.pos.x = width + this.size;
+
+    if (this.pos.x > width + this.size)
+      this.pos.x = -this.size;
+
+    let surface = surfaceY(this.pos.x);
+
+    if (this.pos.y < surface + this.size) {
+      this.pos.y = surface + this.size;
+      this.vel.y = abs(this.vel.y);
+    }
+
+    if (this.pos.y > height - this.size) {
+      this.pos.y = height - this.size;
+      this.vel.y *= -1;
+    }
+
+  }
+
+  display() {
+
+    push();
+
+    translate(this.pos.x, this.pos.y);
+    rotate(this.vel.heading());
+
+    noStroke();
+    fill(this.col);
+
+    ellipse(0, 0, this.size * 1.6, this.size);
+
+    triangle(
+      -this.size * 0.8,
+      0,
+      -this.size * 1.4,
+      this.size * 0.5,
+      -this.size * 1.4,
+      -this.size * 0.5
+    );
+
+    fill(255);
+    ellipse(this.size * 0.4, -2, 4);
+
+    fill(0);
+    ellipse(this.size * 0.5, -2, 2);
+
+    pop();
+
+  }
+
+}
+
+class BlackFish extends Fish {
+
+constructor(x, y) {
+  super(x, y, color(20), 10);
+  this.speed = 1.8;
+
+  this.changeInterval = floor(random(5, 26));
+  this.step = p5.Vector.random2D();
+  this.step.setMag(this.speed);
+}
+
+ update(redFish) {
+
+  // Only pick a new direction occasionally
+  if (frameCount % this.changeInterval == 0) {
+
+    this.step = p5.Vector.random2D();
+
+    // Find nearest red fish
+    let nearest = null;
+    let closest = Infinity;
+
+    for (let r of redFish) {
+
+      let d = p5.Vector.dist(this.pos, r.pos);
+
+      if (d < closest) {
+        closest = d;
+        nearest = r;
+      }
+
+    }
+
+    // 65% chance to escape if a predator is nearby
+    if (nearest && closest < 120 && random() < 0.65) {
+
+      this.step = p5.Vector.sub(this.pos, nearest.pos);
+      this.step.normalize();
+
+    }
+
+    this.step.setMag(this.speed);
+  }
+
+this.vel = this.step.copy();
+
+this.separate([
+  ...blackFish,
+  ...redFish,
+  blueFish
+]);
+
+this.move();
+}
+
+}
+
+class RedFish extends Fish {
+
+  constructor(x, y) {
+    super(x, y, color(255, 70, 70), 12);
+    this.speed = 2.2;
+  }
+
+  update(blackFish) {
+
+    if (blackFish.length == 0) {
+      this.move();
+      return;
+    }
+
+    let target = blackFish[0];
+    let best = Infinity;
+
+    for (let b of blackFish) {
+
+      let d = dist(
+        this.pos.x,
+        this.pos.y,
+        b.pos.x,
+        b.pos.y
+      );
+
+      if (d < best) {
+        best = d;
+        target = b;
+      }
+
+    }
+
+    let desired = p5.Vector.sub(
+      target.pos,
+      this.pos
+    );
+
+    desired.normalize();
+
+    // Gaussian angle variation
+    let angle =
+      randomGaussian(0, radians(18));
+
+    desired.rotate(angle);
+
+    desired.setMag(this.speed);
+
+    this.vel.lerp(desired, 0.08);
+this.separate([
+  ...blackFish,
+  ...redFish,
+]);
+
+this.move();
+  }
+
+}
+
+class BlueFish extends Fish {
+
+  constructor(x, y) {
+  super(x, y, color(60, 150, 255), 24);
+  this.speed = 2.5;
+
+  this.target = null;
+}
+
+  update(allFish) {
+
+    if (allFish.length == 0) {
+  this.target = null;
+  return;
+}
+
+// Pick a new target only if there isn't one
+// or if it has already been eaten.
+if (this.target == null || !allFish.includes(this.target)) {
+  this.target = random(allFish);
+}
+
+let target = this.target;
+
+// Move toward the target
+let desired = p5.Vector.sub(target.pos, this.pos);
+desired.normalize();
+
+// Mouse influence
+if (
+  mouseX > 0 &&
+  mouseX < width &&
+  mouseY > surfaceY(mouseX) &&
+  mouseY < height
+) {
+
+ let mouseDir = createVector(mouseX, mouseY);
+mouseDir.sub(this.pos);
+
+let distance = mouseDir.mag();
+
+mouseDir.normalize();
+
+let influence = map(distance, 0, width, 1, 0.2, true);
+
+desired.lerp(mouseDir, influence);
+}
+
+desired.setMag(this.speed);
+
+// Smooth steering
+this.vel.lerp(desired, 0.2);
+
+this.move();
+
+    // Eat fish
+    let d = p5.Vector.dist(this.pos, target.pos);
+
+    if (d < this.size / 2 + target.size / 2) {
+
+      this.size += 2;
+
+      if (target instanceof BlackFish) {
+        blackFish = blackFish.filter(f => f !== target);
+      }
+
+      if (target instanceof RedFish) {
+        redFish = redFish.filter(f => f !== target);
+      }
+
+      hunterChance += 0.03; // +3%
+
+     this.target = null;
+      
+
+    }
+
+  }
+
+}
+class HunterFish extends Fish {
+
+  constructor(x, y) {
+
+    super(
+      x,
+      y,
+      color(255, 240, 40),
+      42
+    );
+
+    this.speed = blueFish.speed * 0.5; // half as fast
+  }
+
+  update() {
+
+    let desired = p5.Vector.sub(
+      blueFish.pos,
+      this.pos
+    );
+
+    desired.normalize();
+    desired.setMag(this.speed);
+
+    this.vel.lerp(desired, 0.05);
+
+    this.move();
+
+    // Catch the blue fish
+    let d = p5.Vector.dist(
+      this.pos,
+      blueFish.pos
+    );
+
+    if (d < (this.size + blueFish.size) * 0.5) {
+      restartSimulation();
+    }
+
+  }
+
+}
+
+function restartSimulation() {
+
+  hunterFish = null;
+  hunterSpawned = false;
+  hunterChance = 0.01;
+
+  blackFish = [];
+  redFish = [];
+
+  for (let i = 0; i < 15; i++) {
+
+    blackFish.push(
+      new BlackFish(
+        random(width),
+        random(waterLevel + 30, height - 30)
+      )
+    );
+
+  }
+
+  for (let i = 0; i < 5; i++) {
+
+    redFish.push(
+      new RedFish(
+        random(width),
+        random(waterLevel + 30, height - 30)
+      )
+    );
+
+  }
+
+  blueFish = new BlueFish(
+    width / 2,
+    random(waterLevel + 30, height - 30)
+  );
+
+}
+function surfaceY(x) {
+  return (
+    height * 0.2 +
+    sin(x * 0.02 + t) * 18 +
+    sin(x * 0.05 + t * 1.3) * 8
+  );
+}
+```
+
+```javascript
+let t = 0;
+
+let waterLevel;
+
+let plankton = [];
+
+let nextPlanktonSpawn = 0;
+
+let blackFish = [];
+let redFish = [];
+
+let nextBlackFishSpawn = 300; // first fish after 5 seconds
+let sharksStarted = false;
+let schoolsFormed = 0;
+let firstSchoolTime = -1;
+let schools = [];
+let schoolTimers = [];
+
+function setup() {
+
+  createCanvas(800, 400);
+  noStroke();
+
+  waterLevel = height * 0.2;
+
+
+  nextPlanktonSpawn = frameCount + int(random(30, 120));
+  for (let i = 0; i < 80; i++) {
+
+  plankton.push(
+    new Plankton(
+      random(width),
+      random(height * 0.75, height - 10)
+    )
+  );
+
+}
+
+  blackFish = [];
+  redFish = [];
+
+
+
+}
+
+function draw() {
+
+  background(10, 30, 70);
+
+  //----------------------------------
+  // Water
+  //----------------------------------
+
+  for (let x = 0; x <= width; x += 4) {
+
+    let y =
+      height * 0.2 +
+      sin(x * 0.02 + t) * 18 +
+      sin(x * 0.05 + t * 1.3) * 8;
+
+    let n = noise(x * 0.01, t * 0.2);
+
+    fill(
+      20,
+      map(n, 0, 1, 80, 180),
+      map(n, 0, 1, 140, 255)
+    );
+
+    rect(x, y, 4, height - y);
+  }
+
+  //----------------------------------
+  // Spawn plankton
+  //----------------------------------
+
+  if (frameCount >= nextPlanktonSpawn) {
+
+    let amount = int(random(2, 6));
+
+for (let i = 0; i < amount; i++) {
+
+  plankton.push(
+    new Plankton(
+      random(width),
+      random(height * 0.75, height - 10)
+    )
+  );
+
+}
+
+    nextPlanktonSpawn =
+      frameCount + int(random(30, 180));
+  }
+
+  //----------------------------------
+  // Update plankton
+  //----------------------------------
+
+  for (let p of plankton) {
+    p.update();
+    p.display();
+  }
+  while (plankton.length > 250) {
+  plankton.shift();
+}
+
+  //----------------------------------
+  // Spawn fish after 5 seconds
+  //----------------------------------
+
+  for(let s of schoolTimers){
+
+    if(
+        s.plankton.assigned >= 3 &&
+        !s.counted
+    ){
+
+        schoolsFormed++;
+        s.counted = true;
+
+        if(schoolsFormed == 2){
+            firstSchoolTime = millis();
+        }
+
+    }
+
+}
+ if (frameCount >= nextBlackFishSpawn) {
+
+  let x;
+  let direction;
+
+  if (random() < 0.5) {
+    x = -30;
+    direction = 1;
+  } else {
+    x = width + 30;
+    direction = -1;
+  }
+
+  let fish = new BlackFish(
+    x,
+    random(height * 0.4, height * 0.9)
+  );
+
+  fish.vel = createVector(direction, random(-0.2, 0.2));
+
+  blackFish.push(fish);
+
+  nextBlackFishSpawn =
+    frameCount + int(random(120, 240));
+
+}
+  //----------------------------------
+  // Spawn sharks later
+  //----------------------------------
+
+ if (
+    !sharksStarted &&
+    schoolsFormed >= 2 &&
+    millis() - firstSchoolTime > 10000
+) {
+
+    sharksStarted = true;
+
+    for (let i = 0; i < 5; i++) {
+
+        redFish.push(
+            new RedFish(
+                random(width),
+                random(
+                    waterLevel + 20,
+                    height * 0.45
+                )
+            )
+        );
+
+    }
+
+}
+
+  //----------------------------------
+  // Shadows
+  //----------------------------------
+
+  for (let i = 0; i < 80; i++) {
+
+    fill(0, 0, 20, random(5,20));
+
+    ellipse(
+      randomGaussian(width/2, width/5),
+      randomGaussian(height*0.75, 40),
+      abs(randomGaussian(10,5))
+    );
+
+  }
+
+  //----------------------------------
+  // Update black fish
+  //----------------------------------
+
+ for (let b of blackFish) {
+  b.update(redFish);
+  b.display();
+}
+
+blackFish = blackFish.filter(f => !f.dead);
+
+  //----------------------------------
+  // Update sharks
+  //----------------------------------
+
+  for (let r of redFish) {
+
+    r.update(blackFish);
+    r.display();
+
+  }
+
+  //----------------------------------
+
+  t += 0.02;
+
+}
+class Plankton {
+
+  constructor(x, y) {
+
+    this.pos = createVector(x, y);
+
+    this.size = random(4, 7);
+
+    this.offset = random(1000);
+
+    this.assigned = 0;
+
+  }
+
+  update() {
+
+    // Slow drifting
+    this.pos.x += map(
+      noise(this.offset, frameCount * 0.003),
+      0,
+      1,
+      -0.5,
+      0.5
+    );
+
+    this.pos.y += random(-0.2, 0.2);
+
+    // Stay near the bottom
+    this.pos.y = constrain(
+      this.pos.y,
+      height * 0.75,
+      height - 5
+    );
+
+  }
+
+  display() {
+
+    noStroke();
+
+    fill(240, 240, 180, 180);
+
+    ellipse(
+      this.pos.x,
+      this.pos.y,
+      this.size
+    );
+
+  }
+
+}
+
+class Fish {
+
+  constructor(x, y, c, s) {
+    this.pos = createVector(x, y);
+    this.vel = p5.Vector.random2D();
+    this.speed = 2;
+    this.size = s;
+    this.col = c;
+  }
+
+  separate(fishes) {
+
+    let force = createVector(0, 0);
+    let count = 0;
+
+    for (let other of fishes) {
+
+      if (other === this) continue;
+
+      let d = p5.Vector.dist(this.pos, other.pos);
+      let minDist = (this.size + other.size) * 0.8;
+
+      if (d > 0 && d < minDist) {
+
+        let diff = p5.Vector.sub(this.pos, other.pos);
+
+        diff.normalize();
+        diff.div(d);
+
+        force.add(diff);
+        count++;
+
+      }
+    }
+
+    if (count > 0) {
+
+      force.div(count);
+      force.setMag(0.8);
+
+      this.vel.add(force);
+
+    }
+  }
+
+  move() {
+
+    this.pos.add(this.vel);
+
+if (
+  this.pos.x < -60 ||
+  this.pos.x > width + 60
+) {
+  this.dead = true;
+}
+    let surface = surfaceY(this.pos.x);
+
+    if (this.pos.y < surface + this.size) {
+      this.pos.y = surface + this.size;
+      this.vel.y = abs(this.vel.y);
+    }
+
+    if (this.pos.y > height - this.size) {
+      this.pos.y = height - this.size;
+      this.vel.y *= -1;
+    }
+
+  }
+
+  display() {
+
+    push();
+
+    translate(this.pos.x, this.pos.y);
+    rotate(this.vel.heading());
+
+    noStroke();
+    fill(this.col);
+
+    ellipse(0, 0, this.size * 1.6, this.size);
+
+    triangle(
+      -this.size * 0.8,
+      0,
+      -this.size * 1.4,
+      this.size * 0.5,
+      -this.size * 1.4,
+      -this.size * 0.5
+    );
+
+    fill(255);
+    ellipse(this.size * 0.4, -2, 4);
+
+    fill(0);
+    ellipse(this.size * 0.5, -2, 2);
+
+    pop();
+
+  }
+
+}
+
+class BlackFish extends Fish {
+
+constructor(x, y) {
+
+  super(x, y, color(20), 10);
+
+  this.speed = 1.8;
+
+  this.changeInterval = floor(random(30, 90));
+
+  this.state = "exploring";
+  this.target = null;
+
+  this.step = p5.Vector.random2D();
+  this.step.setMag(this.speed);
+
+}
+
+update(redFish) {
+
+  //---------------------------------
+  // Predator avoidance
+  //---------------------------------
+
+  let nearest = null;
+  let closest = Infinity;
+
+  for (let r of redFish) {
+
+    let d = p5.Vector.dist(this.pos, r.pos);
+
+    if (d < closest) {
+      closest = d;
+      nearest = r;
+    }
+
+  }
+
+  if (nearest && closest < 120 && random() < 0.65) {
+
+    let flee = p5.Vector.sub(this.pos, nearest.pos);
+
+    flee.setMag(this.speed);
+
+    this.vel.lerp(flee,0.2);
+
+  }
+
+  //---------------------------------
+  // Exploring
+  //---------------------------------
+
+  else if (this.state == "exploring") {
+
+    if (frameCount % this.changeInterval == 0) {
+
+      let angle = this.vel.heading();
+
+      angle += random(-PI/4,PI/4);
+
+      this.step = p5.Vector.fromAngle(angle);
+
+      this.step.setMag(this.speed);
+
+    }
+
+    this.vel.lerp(this.step,0.1);
+
+    let cluster = this.findPlanktonCluster();
+
+    if (cluster != null) {
+
+      if (cluster.assigned == 1) {
+
+    schoolsFormed++;
+
+    if (cluster.assigned == 1) {
+
+    schoolTimers.push({
+        plankton: cluster,
+        time: millis()
+    });
+
+}
+
+}
+      this.state = "feeding";
+
+      this.target = cluster;
+      cluster.assigned++;
+
+    }
+
+  }
+
+  //---------------------------------
+  // Feeding
+  //---------------------------------
+
+  else if (this.state == "feeding") {
+
+    if (
+    this.target == null ||
+    !plankton.includes(this.target)
+) {
+
+    if (this.target != null) {
+        this.target.assigned =
+            max(0, this.target.assigned - 1);
+    }
+
+    this.state = "exploring";
+    this.target = null;
+
+}
+
+    else {
+
+      let desired = p5.Vector.sub(
+        this.target.pos,
+        this.pos
+      );
+
+      desired.setMag(this.speed);
+
+      this.vel.lerp(desired,0.15);
+
+      if (
+        p5.Vector.dist(
+          this.pos,
+          this.target.pos
+        ) < 10
+      ) {
+
+        this.target.assigned--;
+
+plankton = plankton.filter(
+    p => p != this.target
+);
+
+this.state = "exploring";
+this.target = null;
+
+      }
+
+    }
+
+  }
+
+  this.separate(blackFish);
+
+  this.move();
+
+}
+
+findPlanktonCluster() {
+
+  let best = null;
+  let bestCount = 0;
+
+  for (let p of plankton) {
+
+    let count = 0;
+
+    for (let other of plankton) {
+
+      if (dist(
+        p.pos.x,
+        p.pos.y,
+        other.pos.x,
+        other.pos.y
+      ) < 40) {
+
+        count++;
+
+      }
+
+    }
+
+    if (
+    count >= 3 &&
+    count > bestCount &&
+    p.assigned < 5
+) {
+
+      best = p;
+      bestCount = count;
+
+    }
+
+  }
+
+  return best;
+
+}
+
+}
+
+class RedFish extends Fish {
+
+  constructor(x, y) {
+    super(x, y, color(255, 70, 70), 12);
+    this.speed = 2.2;
+  }
+
+  update(blackFish) {
+
+    if (blackFish.length == 0) {
+        this.move();
+        return;
+    }
+
+
+    // Find nearest school center
+
+    let target = null;
+    let closest = Infinity;
+
+
+    for(let school of schools){
+
+        let members = blackFish.filter(
+    b => b.target == school.plankton
+);
+
+
+        if(members.length > 0){
+
+            let center = createVector(0,0);
+
+            for(let b of members){
+                center.add(b.pos);
+            }
+
+            center.div(members.length);
+
+
+            let d = dist(
+                this.pos.x,
+                this.pos.y,
+                center.x,
+                center.y
+            );
+
+
+            if(d < closest){
+                closest = d;
+                target = center;
+            }
+
+        }
+
+    }
+
+
+    // Chase school
+
+    if(target){
+
+        let desired = p5.Vector.sub(
+            target,
+            this.pos
+        );
+
+        desired.normalize();
+
+
+        // shark uncertainty
+        desired.rotate(
+            randomGaussian(0,radians(10))
+        );
+
+
+        desired.setMag(this.speed);
+
+        this.vel.lerp(
+            desired,
+            0.08
+        );
+
+    }
+
+
+
+    // Stay near surface
+
+    let desiredY = height * 0.3;
+
+    this.vel.y +=
+      (desiredY - this.pos.y) * 0.003;
+      
+
+
+
+    this.separate([
+        ...blackFish,
+        ...redFish
+    ]);
+
+
+    for(let b of blackFish){
+
+    let d = p5.Vector.dist(
+        this.pos,
+        b.pos
+    );
+
+
+    if(d < 12){
+
+        b.dead = true;
+
+    }
+
+}
+    this.move();
+
+
+}
+
+}
+
+
+function surfaceY(x) {
+  return (
+    height * 0.2 +
+    sin(x * 0.02 + t) * 18 +
+    sin(x * 0.05 + t * 1.3) * 8
+  );
+}
+```
+
+## CHANGES TO THE SHARKFEST SIMULATION
+
+1.  Remove the BlueFish and HunterFish systems entirely.
+
+2.  Add a Plankton class
+
+-   Spawn near the bottom of the water.
+-   Very slow random walk (or Perlin drift).
+-   Spawn continuously every random number of seconds.
+-   Remove plankton when eaten.
+
+3.  Black Fish lifecycle State: Exploring
+
+-   Enter from the left or right edge every random interval.
+-   Wander using a random walk.
+
+Transition: - If a fish detects a cluster of at least 3 plankton within
+a small radius, it becomes Feeding.
+
+State: Feeding - Nearby black fish gain an increased probability of
+moving toward the feeder. - Once several fish arrive they form a
+school. - School members use Gaussian offsets around the school center
+while eating.
+
+4.  Red Sharks
+
+-   Do not exist at the beginning.
+-   After schools have formed twice and 10 seconds have passed, spawn a
+    patrol of red sharks.
+-   Sharks remain mostly near the upper part of the water.
+-   They attack nearby schools.
+
+5.  Explorer Shark (blue)
+
+-   Rarely (1% chance while a shark is near the upper patrol area) one
+    red shark becomes an explorer.
+-   Explorer performs Lévy-flight movement.
+-   Searches for dense schools.
+-   Eats four black fish.
+-   Returns to the nearest shark.
+-   Changes back into a normal red shark.
+
+6.  Influence
+
+-   Mouse does not attract animals.
+-   Mouse changes the current.
+-   Currents modify movement probabilities and plankton distribution.
+
+7.  Spawn / Despawn
+
+-   Any creature leaving the screen is removed.
+-   Every random number of seconds a new creature of that type enters
+    from one of the screen edges.
+
+Suggested update order each frame:
+
+1.  Draw water.
+2.  Spawn plankton if timer expires.
+3.  Update plankton.
+4.  Spawn black fish.
+5.  Update black fish.
+6.  Check for plankton clusters.
+7.  Form schools.
+8.  Spawn sharks if conditions are met.
+9.  Update sharks.
+10. Update explorer shark.
+11. Remove off-screen entities.
+12. Spawn replacements.
