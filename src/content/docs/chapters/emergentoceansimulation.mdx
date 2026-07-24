@@ -1,0 +1,419 @@
+---
+title: Emergent Ocean Simulation
+description: A generative ecosystem study exploring uncertainty, probability, and interaction through autonomous agents.
+---
+
+# Emergent Ocean Simulation
+
+## Introduction
+
+This project explores how a digital ecosystem can create meaningful behavior without relying on completely predetermined events.
+
+The initial idea was to create an environment where uncertainty is not treated as pure randomness, but as a collection of different behaviors that produce different results. Instead of controlling every movement, the system is built from simple rules that interact with each other, allowing unexpected situations to emerge.
+
+The ocean became the environment for this experiment because it naturally represents uncertainty. Currents constantly change, creatures search for resources without knowing the complete environment, and small changes can affect the entire ecosystem.
+
+The simulation combines procedural generation, autonomous agents, probability distributions, noise functions, and user interaction to create a living system that continues evolving even without external input.
+
+# SharkFest Ecosystem Study
+
+This project was developed as an exploration inspired by **SharkFest**, with the intention of representing shark ecosystems as dynamic systems rather than isolated animals.
+
+The goal was to create a digital environment where sharks are not simply programmed as enemies or obstacles, but as organisms that interact with their surroundings, search for resources, adapt to changes, and influence the balance of the ecosystem.
+
+Instead of focusing only on the shark as an individual creature, the simulation explores the relationships that allow an ecosystem to exist:
+
+- Predator and prey relationships.
+- Resource availability.
+- Group behavior.
+- Exploration patterns.
+- Environmental changes.
+- Unexpected events.
+
+The sharks in this simulation are designed as autonomous agents that respond to the conditions around them. Their behavior emerges from simple rules, allowing different situations to appear naturally.
+
+A shark may patrol a familiar area, follow fish groups, become an explorer, search new territories, or return to its population after completing its search. These behaviors are not manually scripted as specific scenes; they emerge from the interaction between probability, movement rules, and environmental conditions.
+
+The project aims to communicate that ecosystems are not static structures. They are constantly changing networks where every organism influences the possibilities available to others.
+
+By combining procedural generation, autonomous behaviors, and interactive influence, this simulation presents sharks as part of a larger living system, emphasizing curiosity, adaptation, and the uncertainty that exists in natural environments.
+---
+
+# Project Structure
+
+The simulation is divided into several interconnected systems:
+
+- Procedural ocean rendering
+- Dynamic lighting and day/night cycle
+- Environmental background life
+- Plankton generation and movement
+- Fish behavior and schooling
+- Shark predator behavior
+- User-created environmental changes
+- Procedural sound design
+
+Each system has independent rules, but their interactions create the final behavior of the ecosystem.
+
+---
+
+# Procedural Ocean
+
+The first step was creating an environment that constantly changes.
+
+The water surface is generated mathematically instead of using a static animation.
+
+The wave position is calculated using multiple sine functions:
+
+```javascript
+sin(x * 0.02 + t) * 18 +
+sin(x * 0.05 + t * 1.3) * 8
+
+```
+
+Using multiple frequencies creates a more complex movement than a single wave. The combination produces small variations that make the surface feel less predictable.
+
+The variable t works as the continuous time variable, allowing the ocean to evolve every frame.
+
+The water color also changes using procedural noise. This creates irregular variations similar to underwater light patterns.
+
+The intention was to avoid a perfectly repeating environment. Every moment should feel like a different state of the system.
+
+### Procedural Noise and Shader Experiment
+
+The rendering process uses a generated noise texture.
+
+Instead of creating random pixels, the system uses coherent noise:
+
+```javascript
+noise(x * 0.03, y * 0.03)
+```
+
+This difference is important because different types of randomness produce different behaviors.
+
+Pure random values create disorder.
+
+Noise creates smooth transitions and tendencies.
+
+The generated texture is passed to the shader together with:
+
+The rendered scene
+Time
+Water depth information
+
+The shader uses these values to distort the final image and simulate the effect of looking through moving water.
+
+### Day and Night Cycle
+
+The environment changes automatically over time.
+
+The day cycle uses a sine wave:
+
+```javascript
+sin(dayCycle)
+```
+
+The value is transformed into a smoother transition using:
+
+```javascript
+raw * raw * (3 - 2 * raw)
+```
+
+This creates gradual changes instead of abrupt switches.
+
+##### During the cycle:
+
+The sky changes brightness.
+Stars appear at night.
+The ocean atmosphere changes.
+The sound environment becomes deeper.
+
+The world continues evolving without requiring interaction.
+
+### Background Ecosystem
+
+Before introducing moving creatures, I created a passive environment to make the simulation feel alive.
+
+Coral Generation
+
+Coral formations are generated randomly when the simulation starts.
+
+Each coral element receives:
+
+Random position
+Random size
+Random color
+
+Because the values change every execution, every simulation begins with a different environment.
+
+#### Seaweed Movement
+
+Seaweed uses procedural movement.
+
+Each plant receives a random phase offset:
+
+```javascript
+offset: random(TWO_PI)
+```
+
+The offset prevents all plants from moving at the same rhythm.
+
+The movement is generated using sine waves, creating a continuous underwater current effect.
+
+#### Background Fauna
+
+Small glowing organisms move independently through the background.
+
+Each organism contains:
+
+Position
+Velocity
+Size
+Individual animation offset
+
+They move using simple physics rules, bouncing inside a limited area.
+
+Their brightness changes over time using another sine function, creating a subtle living background.
+
+Plankton System
+
+Plankton is the foundation of the ecosystem.
+
+The simulation begins with an initial population and continuously generates new particles.
+
+Each plankton particle contains:
+
+Position
+Size
+Movement speed
+Color variation
+Interaction state
+
+The color uses a normal distribution:
+
+```javascript
+randomGaussian(180,50)
+```
+
+Instead of every particle having the same probability of appearing, most values stay close to the average while some individuals are different.
+
+This creates natural variation.
+
+### Plankton Movement
+
+Normal plankton movement is controlled using Perlin noise:
+```javascript
+noise(this.offset, frameCount * 0.003)
+```
+
+The movement is not completely random.
+
+The particles slowly drift and maintain continuity between frames.
+
+This creates a difference between:
+
+Random movement: every direction is equally possible.
+Noise movement: movement follows a tendency.
+
+The system uses uncertainty while still maintaining identity.
+
+User Influence
+
+The visitor does not directly control organisms.
+
+Instead, the user modifies the conditions of the environment.
+
+The mouse creates an invisible current.
+
+The system calculates mouse movement:
+
+```javascript
+currentMouse - previousMouse
+```
+
+This creates a velocity vector that influences nearby objects.
+
+Fish and plankton react to this force.
+
+The user cannot decide where an organism goes, but they can modify the probabilities of possible futures.
+
+A movement can push resources together, separate creatures, or create new opportunities.
+
+User Generated Plankton Events
+
+A right click introduces a new resource event.
+
+The particles are generated using:
+
+```javascript
+randomGaussian(centerX,30)
+```
+
+This creates a concentration where most particles appear near the center but some appear further away.
+
+This was chosen because natural systems rarely create perfect distributions.
+
+The interaction creates consequences:
+
+New plankton appears.
+Fish detect the resource.
+Fish create feeding groups.
+Predators may detect these groups.
+
+A small action can create a larger chain reaction.
+
+### Fish Simulation
+
+Fish are autonomous agents based on a shared class.
+
+The base fish contains:
+
+Position
+Velocity
+Size
+Color
+Movement
+Separation behavior
+
+The separation system prevents fish from overlapping.
+
+Each fish checks nearby individuals and generates a force pushing them apart.
+
+From this simple rule, groups naturally appear without explicitly creating a formation system.
+
+ ### Tropical Fish Behavior
+
+Tropical fish have different states.
+
+#### Exploring
+
+During exploration, fish do not have a fixed destination.
+
+Their direction changes periodically:
+
+```javascript
+angle += random(-PI/4,PI/4)
+```
+
+This creates wandering behavior.
+
+The fish has uncertainty, but previous movement influences future movement.
+
+#### Feeding
+
+When fish detect a plankton concentration, they switch behavior.
+
+The system searches for clusters of nearby plankton.
+
+When enough particles are concentrated, fish move toward the resource.
+
+The school behavior is not manually created.
+
+It emerges from multiple agents responding to the same condition.
+
+### Shark Ecosystem
+
+Sharks represent a second level of complexity.
+
+They do not appear immediately.
+
+Their appearance depends on the development of fish groups.
+
+This creates a relationship between previous events and future possibilities.
+
+The ecosystem has a history.
+
+Shark States
+
+The shark behavior is controlled through a state machine:
+
+Entering
+Patrol
+Exploring
+Returning
+
+Each state changes the rules controlling movement.
+
+#### Patrol Behavior
+
+Most sharks remain in patrol mode.
+
+They search for fish schools and move toward their center.
+
+If no school exists, they move between randomly generated patrol locations.
+
+This combines intention and uncertainty.
+
+#### Explorer Shark
+
+A rare event transforms one shark into an explorer.
+
+The explorer is different from the rest of the population.
+
+It can:
+
+Search deeper areas.
+Move independently.
+Hunt isolated fish.
+Return after collecting enough resources.
+
+This creates an exception inside the system.
+
+Most individuals follow established patterns, but occasionally an unusual event changes the ecosystem.
+
+#### Lévy Exploration
+
+The explorer shark uses a Lévy-inspired search pattern.
+
+The movement distance is calculated with:
+
+```javascript
+pow(random(), -1.5)
+```
+
+Most movements are short.
+
+Occasionally, a much larger jump occurs.
+
+This creates a balance between staying near known areas and discovering new regions.
+
+The behavior creates exploration without requiring a predefined path.
+
+Sound Design
+
+Sound was integrated as another layer of information.
+
+The ecosystem contains:
+
+Ocean ambience
+Low frequency waves
+Fish sounds
+Shark drone
+
+The shark sound is connected to its current state.
+
+When the shark becomes an explorer, the sound changes, allowing the visitor to perceive the transformation.
+
+The audio does not simply decorate the simulation; it communicates system changes.
+
+## Final Reflection
+
+This experiment showed that uncertainty is not the absence of rules.
+
+Interesting behavior comes from combining different types of rules.
+
+The simulation uses:
+
+Random movement for exploration.
+Gaussian distributions for natural concentration.
+Perlin noise for continuous variation.
+Lévy movement for rare discoveries.
+Autonomous agents for emergent behavior.
+Interaction as a modification of probabilities.
+
+The final ecosystem is not a collection of programmed animations.
+
+It is a system where simple decisions create complex results.
+
+The visitor does not control the ocean.
+
+They influence the conditions, and the ecosystem decides what can happen next.
