@@ -39,6 +39,2230 @@ The project aims to communicate that ecosystems are not static structures. They 
 By combining procedural generation, autonomous behaviors, and interactive influence, this simulation presents sharks as part of a larger living system, emphasizing curiosity, adaptation, and the uncertainty that exists in natural environments.
 ---
 
+
+## Full Code 
+
+#### index.html
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+  </head>
+  <body>
+    <script src="sketch.js"></script>
+  </body>
+</html>
+    
+```
+#### water.vert
+```glsl
+precision mediump float;
+
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+
+varying vec2 vTexCoord;
+
+void main() {
+    vTexCoord = aTexCoord;
+
+    vec4 positionVec4 = vec4(aPosition, 1.0);
+
+    // Convert from 0..1 to -1..1 clip space
+    positionVec4.xy = positionVec4.xy * 2.0 - 1.0;
+
+    gl_Position = positionVec4;
+}
+```
+#### water.frag
+
+```glsl
+precision mediump float;
+
+attribute vec3 aPosition;
+attribute vec2 aTexCoord;
+
+varying vec2 vTexCoord;
+
+void main() {
+    vTexCoord = aTexCoord;
+
+    vec4 positionVec4 = vec4(aPosition, 1.0);
+
+    // Convert from 0..1 to -1..1 clip space
+    positionVec4.xy = positionVec4.xy * 2.0 - 1.0;
+
+    gl_Position = positionVec4;
+}
+```
+
+
+#### sketch.js
+```javascript
+
+
+// Water
+let t = 0;
+let waterLevel;
+let waterShader;
+let noiseTex;
+// Plankton
+let plankton = [];
+let nextPlanktonSpawn = 0;
+
+// Fish
+
+let tropicalFish = [];
+let shark = [];
+let explorerExists = false;
+
+let nextTropicalFishSpawn = 300; // first fish after 5 seconds
+let sharksStarted = false;
+let schoolsFormed = 0;
+let firstSchoolTime = -1;
+let schools = [];
+let schoolTimers = [];
+
+// User interaction
+let userCurrent;
+let previousMouse;
+let userPlanktonCooldown = 0;
+
+// Shaders
+let scene;
+
+// Day cycle
+let dayCycle=0;
+let stars = [];
+let dayLight = 1;
+
+// Sound
+let oceanNoise;
+let oceanOsc;
+let ambientVolume = 0.15;
+let fishSound;
+let sharkDrone;
+
+// Background ecosystem
+let seaweed = [];
+let coral = [];
+let backgroundFauna = [];
+
+function preload() {
+  waterShader = loadShader("water.vert", "water.frag");
+  console.log("Shader loaded:", waterShader);
+}
+
+
+function setup(){
+
+  createOceanSound();
+    createCanvas(800,400,WEBGL);
+
+        let canvas = document.querySelector("canvas");
+
+    canvas.addEventListener("contextmenu", function(e){
+        e.preventDefault(); // disable browser menu
+        spawnUserPlankton();
+    });
+    SetupBackgroundLife();
+
+    for(let i = 0; i < 150; i++){
+
+    stars.push({
+        x: random(width),
+        y: random(height * 0.7),
+        size: random(1,3),
+        twinkle: random(1000)
+    });
+
+    }   
+
+    userCurrent = createVector(0,0);
+    previousMouse = createVector(mouseX,mouseY);
+
+    scene = createGraphics(800,400);
+
+    noiseTex = createGraphics(256,256);
+    generateNoise();
+    fishSound = new p5.Oscillator('triangle');
+    fishSound.freq(300);
+    fishSound.amp(0);
+    fishSound.start();
+
+    noStroke();
+
+    SetupPlankton();
+    SetupFish();
+
+}
+
+function draw() {
+  UpdateUserInteraction();
+  waterLevel = height * 0.2; 
+
+ let sunlight = UpdateDayCycle();
+updateOceanSound();
+
+let skyR = lerp(5, 170, dayLight);
+let skyG = lerp(15, 220, dayLight);
+let skyB = lerp(40, 255, dayLight);
+
+
+scene.background(
+    skyR,
+    skyG,
+    skyB
+);
+
+  DrawStars(scene);
+
+  DrawWater(scene);
+  DrawCurrent(scene);
+
+  DrawBackgroundLife(scene);
+
+  DrawPlankton(scene);
+  UpdatePlankton(scene); 
+  
+  SpawnFish(scene);
+  UpdateFish(scene);
+  SpawnShark(scene);
+  UpdateShark(scene);
+
+  ApplyShader();
+
+
+
+}
+function UpdateDayCycle(){
+
+    dayCycle += 0.002;
+
+    let raw = map(
+        sin(dayCycle),
+        -1,
+        1,
+        0,
+        1
+    );
+
+    // smoother transition
+    dayLight = raw * raw * (3 - 2 * raw);
+
+}
+
+function createOceanSound(){
+
+    oceanOsc = new p5.Oscillator('sine');
+
+    oceanOsc.freq(80);
+    oceanOsc.amp(0);
+    oceanOsc.start();
+
+
+    oceanNoise = new p5.Noise('brown');
+
+    oceanNoise.amp(0.05);
+    oceanNoise.start();
+
+
+    // SHARK DRONE
+    sharkDrone = new p5.Oscillator('sawtooth');
+
+    sharkDrone.freq(40);
+    sharkDrone.amp(0);
+
+    sharkDrone.start();
+
+}
+
+function updateOceanSound(){
+
+    // deeper at night
+    let night = 1 - dayLight;
+
+
+    let frequency = lerp(
+        120,
+        60,
+        night
+    );
+
+
+    oceanOsc.freq(
+        frequency,
+        0.5
+    );
+
+
+    oceanNoise.amp(
+        lerp(
+            0.03,
+            0.08,
+            night
+        ),
+        0.5
+    );
+
+}
+function playEatSound(){
+
+    let osc = new p5.Oscillator('sine');
+
+    osc.freq(random(600,900));
+
+    osc.amp(0.05);
+
+    osc.start();
+
+    osc.amp(
+        0,
+        0.2
+    );
+
+    osc.stop(0.25);
+
+}
+//#region Water Shader
+
+
+
+function ApplyShader() {
+
+    shader(waterShader);
+
+    waterShader.setUniform("tex", scene);
+    waterShader.setUniform("noiseTex", noiseTex);
+    waterShader.setUniform("time", t);
+waterShader.setUniform("waterLevel", 0.1);
+
+    rect(-width/2, -height/2, width, height);
+
+    resetShader();
+}
+function generateNoise() {
+
+  noiseTex.loadPixels();
+
+  for (let y = 0; y < 256; y++) {
+    for (let x = 0; x < 256; x++) {
+
+      let n = noise(x * 0.03, y * 0.03);
+
+      let c = floor(n * 255);
+
+      let i = 4 * (x + y * 256);
+
+      let nx = noise(x * 0.03, y * 0.03);
+      let ny = noise(x * 0.03 + 200, y * 0.03 + 200);
+
+      noiseTex.pixels[i]     = nx * 255; // R
+      noiseTex.pixels[i + 1] = ny * 255; // G
+      noiseTex.pixels[i + 2] = 0;
+      noiseTex.pixels[i + 3] = 255;
+    }
+  }
+
+  noiseTex.updatePixels();
+}
+
+//#endregion
+
+//#region Draw Water
+
+function getWaterHeight(x){
+
+    return height * 0.1 +
+        sin(x * 0.02 + t) * 18 +
+        sin(x * 0.05 + t * 1.3) * 8;
+} 
+
+function DrawWater (scene){
+  for (let x = 0; x <= width; x += 4) {
+
+    // Handles the water position and 
+    // uses a sign to create waves
+   let y = getWaterHeight(x);
+    // uses a noise map to create light rays 
+    let n = noise(x * 0.01, t * 0.2);
+
+    // uses the noise and the color blue to render the water
+   let sunlight = lerp(0.25, 1, dayLight);
+
+
+scene.fill(
+    20 * sunlight,
+    map(n,0,1,80,180) * sunlight,
+    map(n,0,1,140,255) * sunlight
+);
+
+    scene.rect(x, y, 4, height - y);
+  }
+
+   t += 0.02;
+}
+
+function DrawBackgroundLife(scene){
+
+    //
+    // Coral / rocks
+    //
+
+    scene.noStroke();
+
+    for(let c of coral){
+
+        scene.fill(c.color);
+
+        scene.ellipse(
+    c.x,
+    height - c.size/2,
+    c.size,
+    c.size*1.5
+);
+    }
+
+
+
+    //
+    // Seaweed
+    //
+
+    scene.stroke(
+        20,
+        120,
+        70,
+        180
+    );
+
+    scene.strokeWeight(3);
+
+
+    for(let s of seaweed){
+
+        scene.noFill();
+
+        scene.beginShape();
+
+        for(let y=0;y<s.height;y+=10){
+
+            let wave =
+                sin(
+                    frameCount*0.03+
+                    s.offset+
+                    y*0.05
+                )*8;
+
+
+            scene.vertex(
+                s.x+wave,
+                height-y
+            );
+
+        }
+
+        scene.endShape();
+
+    }
+
+
+
+    //
+    // Background animals
+    //
+
+    scene.noStroke();
+
+    for(let f of backgroundFauna){
+
+        f.pos.add(f.vel);
+
+
+        if(f.pos.x<0 || f.pos.x>width)
+            f.vel.x *= -1;
+
+
+        if(f.pos.y<height*0.4 || f.pos.y>height*0.85)
+            f.vel.y *= -1;
+
+
+
+        let glow =
+            map(
+                sin(frameCount*0.05+f.offset),
+                -1,
+                1,
+                50,
+                180
+            );
+
+
+        scene.fill(
+            80,
+            220,
+            255,
+            glow
+        );
+
+
+        scene.circle(
+            f.pos.x,
+            f.pos.y,
+            f.size
+        );
+
+    }
+
+}
+function DrawCurrent(scene){
+
+    if(userCurrent.mag() > 0.5){
+
+        scene.push();
+
+        scene.noStroke();
+
+        scene.fill(
+            255,
+            255,
+            255,
+            40
+        );
+
+
+        scene.circle(
+            mouseX,
+            mouseY,
+            40 + userCurrent.mag()*5
+        );
+
+
+        scene.pop();
+
+    }
+
+}
+
+function SetupBackgroundLife(){
+
+    // Coral
+    for(let i = 0; i < 12; i++){
+
+        coral.push({
+
+            x: random(width),
+            size: random(20,50),
+            color: color(
+                random(120,220),
+                random(40,120),
+                random(40,100)
+            )
+
+        });
+
+    }
+
+
+    // Seaweed
+    for(let i = 0; i < 25; i++){
+
+        seaweed.push({
+
+            x: random(width),
+            height: random(40,120),
+            offset: random(TWO_PI)
+
+        });
+
+    }
+
+
+    // Small glowing fauna
+    for(let i = 0; i < 30; i++){
+
+        backgroundFauna.push({
+
+            pos:createVector(
+                random(width),
+                random(height*0.4,height*0.85)
+            ),
+
+            vel:createVector(
+                random(-0.2,0.2),
+                random(-0.1,0.1)
+            ),
+
+            size:random(2,5),
+            offset:random(TWO_PI)
+
+        });
+
+    }
+
+}
+//#endregion
+
+
+// Classes need a constructor funtion and an update
+//#region Fish 
+
+class Fish {
+
+  constructor(x, y, c, s) {
+    this.pos = createVector(x, y);
+    this.vel = p5.Vector.random2D();
+    this.speed = 2;
+    this.size = s;
+    this.col = c;
+    this.offset = random(TWO_PI);
+  }
+
+separate(fishes) {
+
+    let force = createVector(0, 0);
+    let count = 0;
+
+    for (let other of fishes) {
+
+      if (other === this) continue;
+
+      let d = p5.Vector.dist(this.pos, other.pos);
+      let minDist = (this.size + other.size) * 0.8;
+
+      if (d > 0 && d < minDist) {
+
+        let diff = p5.Vector.sub(this.pos, other.pos);
+
+        diff.normalize();
+        diff.div(d);
+
+        force.add(diff);
+        count++;
+
+      }
+    }
+
+    if (count > 0) {
+
+      force.div(count);
+      force.setMag(0.8);
+
+      this.vel.add(force);
+
+    }
+  }
+
+ move() {
+
+  // User generated current
+let d = p5.Vector.dist(
+    this.pos,
+    createVector(mouseX,mouseY)
+);
+
+
+if(d < 120){
+
+    let influence = p5.Vector.sub(
+        this.pos,
+        createVector(mouseX,mouseY)
+    );
+
+    influence.normalize();
+
+    influence.mult(
+        map(d,120,0,0.02,0.15)
+    );
+
+
+    influence.add(
+        userCurrent.copy().mult(0.05)
+    );
+
+
+    this.vel.add(influence);
+
+}
+    this.pos.add(this.vel);
+
+
+    if(this instanceof Shark == false){
+
+        if (
+          this.pos.x < -60 ||
+          this.pos.x > width + 60
+        ) {
+          this.dead = true;
+        }
+
+    }
+
+
+    let surface = surfaceY(this.pos.x);
+
+    if (this.pos.y < surface + this.size) {
+      this.pos.y = surface + this.size;
+      this.vel.y = abs(this.vel.y);
+    }
+
+    if (this.pos.y > height - this.size) {
+      this.pos.y = height - this.size;
+      this.vel.y *= -1;
+    }
+
+}
+
+display(scene) {
+
+    scene.push();
+
+    scene.translate(this.pos.x, this.pos.y);
+
+    // Rotate only a little so fish pitch up/down
+    let angle = atan2(this.vel.y, abs(this.vel.x));
+    scene.rotate(angle);
+
+    // Flip horizontally when swimming left
+    if (this.vel.x < 0) {
+        scene.scale(-1, 1);
+    }
+
+    // Tail wag
+    let wag = sin(frameCount * 0.25 + this.offset) * this.size * 0.15;
+
+    scene.noStroke();
+    scene.fill(this.col);
+
+    // ---------- Tail ----------
+    scene.beginShape();
+    scene.vertex(-this.size * 0.7, 0);
+    scene.vertex(-this.size * 1.5, -this.size * 0.55 + wag);
+    scene.vertex(-this.size * 1.25, 0);
+    scene.endShape(CLOSE);
+
+    scene.beginShape();
+    scene.vertex(-this.size * 0.7, 0);
+    scene.vertex(-this.size * 1.5, this.size * 0.55 - wag);
+    scene.vertex(-this.size * 1.25, 0);
+    scene.endShape(CLOSE);
+
+    // ---------- Body ----------
+    scene.beginShape();
+
+    scene.vertex(-this.size * 0.9, 0);
+
+    scene.bezierVertex(
+        -this.size * 0.5, -this.size * 0.7,
+         this.size * 0.6, -this.size * 0.6,
+         this.size * 1.0, 0
+    );
+
+    scene.bezierVertex(
+         this.size * 0.6, this.size * 0.6,
+        -this.size * 0.5, this.size * 0.7,
+        -this.size * 0.9, 0
+    );
+
+    scene.endShape(CLOSE);
+
+    // ---------- Dorsal fin ----------
+    scene.beginShape();
+
+    scene.vertex(-this.size * 0.2, -this.size * 0.2);
+
+    scene.bezierVertex(
+        0,
+        -this.size * 1.0,
+        this.size * 0.3,
+        -this.size * 0.7,
+        this.size * 0.1,
+        -this.size * 0.15
+    );
+
+    scene.endShape(CLOSE);
+
+    // ---------- Bottom fin ----------
+    scene.beginShape();
+
+    scene.vertex(-this.size * 0.1, this.size * 0.15);
+
+    scene.bezierVertex(
+        this.size * 0.1,
+        this.size * 0.9,
+        this.size * 0.4,
+        this.size * 0.6,
+        this.size * 0.2,
+        this.size * 0.1
+    );
+
+    scene.endShape(CLOSE);
+
+    // ---------- Eye ----------
+    scene.fill(255);
+    scene.ellipse(
+        this.size * 0.55,
+        -this.size * 0.12,
+        this.size * 0.28
+    );
+
+    scene.fill(0);
+    scene.ellipse(
+        this.size * 0.6,
+        -this.size * 0.12,
+        this.size * 0.14
+    );
+
+    scene.pop();
+}
+
+}
+
+class TropicalFish extends Fish {
+  constructor(x, y) {
+
+ super(
+  x,
+  y,
+  random([
+  color(255, 20, 20),    // neon red
+  color(255, 80, 10),    // neon orange
+  color(255, 230, 20),   // neon yellow
+  color(20, 255, 80),    // neon green
+  color(255, 20, 220),   // neon pink
+  color(180, 20, 255)    // neon purple
+]),
+  10
+);
+
+  this.speed = 1.8;
+
+  this.changeInterval = floor(random(30, 90));
+
+  this.state = "exploring";
+  this.target = null;
+
+  this.step = p5.Vector.random2D();
+  this.step.setMag(this.speed);
+
+}
+update(shark) {
+
+  if(frameCount % 120 == 0){
+
+    fishSound.freq(
+        random(250,500)
+    );
+
+    fishSound.amp(
+        0.03,
+        0.05
+    );
+
+    fishSound.amp(
+        0,
+        0.3
+    );
+
+}
+
+  //---------------------------------
+  // Predator avoidance
+  //---------------------------------
+
+  let nearest = null;
+  let closest = Infinity;
+
+  for (let r of shark) {
+
+    let d = p5.Vector.dist(this.pos, r.pos);
+
+    if (d < closest) {
+      closest = d;
+      nearest = r;
+    }
+
+  }
+
+  if (nearest && closest < 120 && random() < 0.65) {
+
+    let flee = p5.Vector.sub(this.pos, nearest.pos);
+
+    flee.setMag(this.speed);
+
+    this.vel.lerp(flee,0.2);
+
+  }
+
+  //---------------------------------
+  // Exploring
+  //---------------------------------
+
+  else if (this.state == "exploring") {
+
+    if (frameCount % this.changeInterval == 0) {
+
+      let angle = this.vel.heading();
+
+      angle += random(-PI/4,PI/4);
+
+      this.step = p5.Vector.fromAngle(angle);
+
+      this.step.setMag(this.speed);
+
+    }
+
+    this.vel.lerp(this.step,0.1);
+
+    let cluster = this.findPlanktonCluster();
+
+    if (cluster != null) {
+
+      if (cluster.assigned == 1) {
+
+    schoolsFormed++;
+
+    if (cluster.assigned == 1) {
+
+    schoolTimers.push({
+        plankton: cluster,
+        time: millis()
+    });
+
+  }
+
+}
+      this.state = "feeding";
+
+      this.target = cluster;
+      cluster.assigned++;
+
+    }
+
+  }
+
+  //---------------------------------
+  // Feeding
+  //---------------------------------
+
+  else if (this.state == "feeding") {
+
+    if (
+    this.target == null ||
+    !plankton.includes(this.target)
+) {
+
+    if (this.target != null) {
+        this.target.assigned =
+            max(0, this.target.assigned - 1);
+    }
+
+    this.state = "exploring";
+    this.target = null;
+
+}
+
+    else {
+
+      let desired = p5.Vector.sub(
+        this.target.pos,
+        this.pos
+      );
+
+      desired.setMag(this.speed);
+
+      this.vel.lerp(desired,0.15);
+
+      if (
+        p5.Vector.dist(
+          this.pos,
+          this.target.pos
+        ) < 10
+      ) {
+
+        playEatSound();
+        this.target.assigned--;
+
+        plankton = plankton.filter(
+        p => p != this.target
+);
+
+this.state = "exploring";
+this.target = null;
+
+      }
+
+    }
+
+  }
+
+  this.separate(tropicalFish);
+
+  this.move();
+
+}
+
+findPlanktonCluster() {
+
+  let best = null;
+  let bestCount = 0;
+
+  for (let p of plankton) {
+
+    let count = 0;
+
+    for (let other of plankton) {
+
+      if (dist(
+        p.pos.x,
+        p.pos.y,
+        other.pos.x,
+        other.pos.y
+      ) < 40) {
+
+        count++;
+
+      }
+
+    }
+
+    if (
+    count >= 3 &&
+    count > bestCount &&
+    p.assigned < 5
+) {
+
+      best = p;
+      bestCount = count;
+
+    }
+
+  }
+
+  return best;
+
+}
+
+}
+class Shark extends Fish {
+
+ constructor(x, y) {
+
+    super(x, y, color(120,120,120), 18);
+
+    this.speed = 2.4;
+
+    this.state = "entering";
+
+    this.patrolTarget = createVector(
+        random(50, width - 50),
+        random(waterLevel + 40, height * 0.35)
+    );
+
+    this.foodEaten = 0;
+
+    this.isExplorer = false;
+
+    this.levyTarget = this.pos.copy();
+
+    this.soundActive = false;
+}
+
+display(scene) {
+
+    scene.push();
+
+    scene.translate(this.pos.x, this.pos.y);
+
+    // Face the direction of movement
+   let angle = atan2(
+    this.vel.y * 0.3,
+    abs(this.vel.x)
+);
+
+scene.rotate(angle);
+
+    if (this.vel.x < 0) {
+        scene.scale(-1, 1);
+    }
+
+    let wag = sin(frameCount * 0.18 + this.offset) * this.size * 0.18;
+
+    scene.noStroke();
+
+    //====================
+    // Tail
+    //====================
+
+    scene.fill(120);
+
+    scene.beginShape();
+    scene.vertex(-this.size * 1.0, 0);
+    scene.vertex(-this.size * 2.1, -this.size * 0.9 + wag);
+    scene.vertex(-this.size * 1.7, 0);
+    scene.vertex(-this.size * 2.1, this.size * 0.9 - wag);
+    scene.endShape(CLOSE);
+
+    //====================
+    // Body
+    //====================
+
+    scene.fill(140);
+
+    scene.beginShape();
+
+    scene.vertex(-this.size * 1.2, 0);
+
+    scene.bezierVertex(
+        -this.size * 0.8, -this.size * 0.55,
+         this.size * 0.5, -this.size * 0.45,
+         this.size * 1.6, 0
+    );
+
+    scene.bezierVertex(
+         this.size * 0.5, this.size * 0.45,
+        -this.size * 0.8, this.size * 0.55,
+        -this.size * 1.2, 0
+    );
+
+    scene.endShape(CLOSE);
+
+    //====================
+    // White belly
+    //====================
+
+    scene.fill(220);
+
+    scene.beginShape();
+
+    scene.vertex(-this.size * 0.8, 0);
+
+    scene.bezierVertex(
+        -this.size * 0.2,
+         this.size * 0.25,
+         this.size * 1.0,
+         this.size * 0.18,
+         this.size * 1.35,
+         0
+    );
+
+    scene.vertex(this.size * 0.2, this.size * 0.35);
+
+    scene.endShape(CLOSE);
+
+    //====================
+    // Dorsal fin
+    //====================
+
+    scene.fill(110);
+
+    scene.beginShape();
+
+    scene.vertex(-this.size * 0.2, -this.size * 0.25);
+    scene.vertex(this.size * 0.2, -this.size * 1.4);
+    scene.vertex(this.size * 0.6, -this.size * 0.2);
+
+    scene.endShape(CLOSE);
+
+    //====================
+    // Left pectoral
+    //====================
+
+    scene.beginShape();
+
+    scene.vertex(0, this.size * 0.12);
+    scene.vertex(this.size * 0.8, this.size * 0.65);
+    scene.vertex(this.size * 0.25, this.size * 0.2);
+
+    scene.endShape(CLOSE);
+
+    //====================
+    // Right pectoral
+    //====================
+
+    scene.beginShape();
+
+    scene.vertex(0, -this.size * 0.08);
+    scene.vertex(this.size * 0.7, -this.size * 0.55);
+    scene.vertex(this.size * 0.25, -this.size * 0.15);
+
+    scene.endShape(CLOSE);
+
+    //====================
+    // Eye
+    //====================
+
+    scene.fill(255);
+
+    scene.circle(
+        this.size * 1.0,
+        -this.size * 0.12,
+        this.size * 0.22
+    );
+
+    scene.fill(0);
+
+    scene.circle(
+        this.size * 1.03,
+        -this.size * 0.12,
+        this.size * 0.1
+    );
+
+    //====================
+    // Gills
+    //====================
+
+    scene.stroke(80);
+    scene.strokeWeight(1.5);
+
+    for (let i = 0; i < 4; i++) {
+
+        let x = this.size * (0.45 - i * 0.12);
+
+        scene.line(
+            x,
+            -this.size * 0.22,
+            x - this.size * 0.08,
+             this.size * 0.22
+        );
+
+    }
+
+    scene.pop();
+}
+ update(tropicalFish) {
+
+
+if(this.state == "exploring"){
+
+    if(!this.soundActive){
+
+        sharkDrone.freq(55);
+        sharkDrone.amp(0.08, 0.5);
+
+        this.soundActive = true;
+
+    }
+
+}
+else{
+
+    if(this.soundActive){
+
+        sharkDrone.amp(0, 0.5);
+
+        this.soundActive = false;
+
+    }
+
+}
+    //--------------------------------------
+    // ENTERING THE OCEAN
+    //--------------------------------------
+
+    if(this.state == "entering"){
+
+        let desired = p5.Vector.sub(
+            this.patrolTarget,
+            this.pos
+        );
+
+        desired.setMag(this.speed);
+
+        this.vel.lerp(desired,0.05);
+
+
+        if(
+    p5.Vector.dist(
+        this.pos,
+        this.patrolTarget
+    ) < 20
+){
+
+    console.log("Reached patrol position");
+
+    this.changeState("patrol");
+
+}
+
+
+        this.move();
+
+        return;
+    }
+
+    //---------------------------------
+    // Randomly become explorer
+    //---------------------------------
+
+    if (
+        this.state == "patrol" &&
+        !explorerExists &&
+        this.pos.y < height * 0.3 &&
+        random() < 0.01
+    ) {
+
+        console.log("Shark became explorer");
+
+        this.changeState("exploring");
+        this.isExplorer = true;
+        explorerExists = true;
+        this.foodEaten = 0;
+
+        this.newLevyTarget();
+    }
+
+    //---------------------------------
+    // PATROL
+    //---------------------------------
+
+    if (this.state == "patrol") {
+
+        let targetSchool = null;
+        let targetCenter = null;
+        let closest = Infinity;
+
+        for (let school of schools) {
+
+            let members = tropicalFish.filter(
+                f => f.target == school.plankton
+            );
+
+            if (members.length < 3) continue;
+
+            let center = createVector();
+
+            for (let f of members)
+                center.add(f.pos);
+
+            center.div(members.length);
+
+            let d = p5.Vector.dist(
+                this.pos,
+                center
+            );
+
+            if (d < closest) {
+
+                closest = d;
+                targetCenter = center;
+                targetSchool = school;
+
+            }
+
+        }
+
+        //---------------------------------
+        // Chase school
+        //---------------------------------
+
+        if (targetCenter) {
+
+            let desired =
+                p5.Vector.sub(
+                    targetCenter,
+                    this.pos
+                );
+
+            desired.rotate(
+                randomGaussian(
+                    0,
+                    radians(8)
+                )
+            );
+
+            desired.setMag(this.speed);
+
+            this.vel.lerp(desired, 0.08);
+
+        }
+
+        //---------------------------------
+        // Random patrol
+        //---------------------------------
+
+        else {
+
+            if (
+                p5.Vector.dist(
+                    this.pos,
+                    this.patrolTarget
+                ) < 30
+            ) {
+
+                this.patrolTarget.set(
+
+                    random(
+                        50,
+                        width - 50
+                    ),
+
+                    random(
+                        waterLevel + 30,
+                        height * 0.35
+                    )
+
+                );
+
+            }
+
+            let desired =
+                p5.Vector.sub(
+                    this.patrolTarget,
+                    this.pos
+                );
+
+            desired.setMag(this.speed);
+
+            this.vel.lerp(desired, 0.05);
+
+        }
+
+        //---------------------------------
+        // Eat fish
+        //---------------------------------
+
+        if (targetSchool) {
+
+            for (let f of tropicalFish) {
+
+                if (
+                    p5.Vector.dist(
+                        this.pos,
+                        f.pos
+                    ) < 30
+                ) {
+
+                   f.dead = true;
+
+console.log(
+    "PATROL shark ate fish",
+    f.pos.x,
+    f.pos.y
+);
+
+break;
+
+                }
+
+            }
+
+        }
+
+    }
+
+    //---------------------------------
+    // EXPLORER
+    //---------------------------------
+
+   else if (this.state == "exploring") {
+
+
+    //---------------------------------
+    // EXPLORER: HUNT NEAREST FISH
+    //---------------------------------
+
+    let nearestFish = null;
+    let closest = Infinity;
+
+
+    for (let f of tropicalFish) {
+
+        if (f.dead) continue;
+
+
+        let d = p5.Vector.dist(
+            this.pos,
+            f.pos
+        );
+
+
+        if (d < closest) {
+
+            closest = d;
+            nearestFish = f;
+
+        }
+
+    }
+
+
+
+    //---------------------------------
+    // CHASE FISH
+    //---------------------------------
+
+    if (nearestFish && closest < 300) {
+
+
+        let desired =
+            p5.Vector.sub(
+                nearestFish.pos,
+                this.pos
+            );
+
+
+        // Move faster when hunting
+        desired.setMag(
+            this.speed * 1.8
+        );
+
+
+        this.vel.lerp(
+            desired,
+            0.18
+        );
+
+
+        //---------------------------------
+        // EAT FISH
+        //---------------------------------
+
+        if (closest < 35) {
+
+
+            nearestFish.dead = true;
+
+
+            this.foodEaten++;
+
+
+            console.log(
+                "Explorer shark ate fish:",
+                this.foodEaten
+            );
+
+
+            // Search somewhere else
+            this.newLevyTarget();
+
+
+        }
+
+
+    }
+
+
+
+    //---------------------------------
+    // NO FISH: LEVY EXPLORATION
+    //---------------------------------
+
+    else {
+
+
+        if (
+            p5.Vector.dist(
+                this.pos,
+                this.levyTarget
+            ) < 20
+        ) {
+
+            this.newLevyTarget();
+
+        }
+
+
+        let desired =
+            p5.Vector.sub(
+                this.levyTarget,
+                this.pos
+            );
+
+
+        desired.setMag(
+            this.speed
+        );
+
+
+        this.vel.lerp(
+            desired,
+            0.08
+        );
+
+    }
+
+
+
+    //---------------------------------
+    // RETURN AFTER EATING ENOUGH
+    //---------------------------------
+
+    if (
+        this.foodEaten >= 4
+    ) {
+
+
+        console.log(
+            "Explorer full, returning to pack"
+        );
+
+
+        this.changeState("returning");
+
+
+    }
+
+
+}
+
+    //---------------------------------
+    // RETURN TO PACK
+    //---------------------------------
+
+   else if (this.state == "returning") {
+
+    let nearest = null;
+    let closest = Infinity;
+
+    for (let s of shark) {
+
+        if (s == this) continue;
+
+        let d = p5.Vector.dist(this.pos, s.pos);
+
+        if (d < closest) {
+            closest = d;
+            nearest = s;
+        }
+    }
+
+
+    if (nearest) {
+
+        // Target pack position
+        let target = nearest.pos.copy();
+
+        // Force shark back into the pack height
+        target.y = constrain(
+            target.y,
+            waterLevel + 30,
+            height * 0.35
+        );
+
+
+        let desired = p5.Vector.sub(
+            target,
+            this.pos
+        );
+
+        desired.setMag(this.speed * 1.8); // faster return
+
+        // Stronger steering than normal swimming
+        this.vel.lerp(
+            desired,
+            0.18
+        );
+
+
+        // When close enough
+        if (closest < 30) {
+
+            console.log(
+                "Explorer returned to pack"
+            );
+
+            this.changeState("patrol");
+
+            this.foodEaten = 0;
+            this.isExplorer = false;
+            explorerExists = false;
+
+            this.patrolTarget.set(
+                random(50,width-50),
+                random(
+                    waterLevel + 30,
+                    height * 0.35
+                )
+            );
+
+        }
+
+    }
+
+}
+
+    //---------------------------------
+    // Separation
+    //---------------------------------
+
+    //this.separate(shark);
+
+    //---------------------------------
+    // Movement
+    //---------------------------------
+
+    this.move();
+if(this.state != "entering"){
+
+    this.pos.x = constrain(
+        this.pos.x,
+        20,
+        width - 20
+    );
+
+}
+if(this.state == "patrol"){
+
+    this.pos.y = constrain(
+        this.pos.y,
+        waterLevel + 20,
+        height * 0.35
+    );
+
+}
+else if(this.state == "exploring"){
+
+    // Explorer can search deeper
+    this.pos.y = constrain(
+        this.pos.y,
+        waterLevel + 20,
+        height - 30
+    );
+
+}
+
+
+    if (
+        this.pos.x <= 20 ||
+        this.pos.x >= width - 20
+    )
+        this.vel.x *= -1;
+
+    if (
+        this.pos.y <= waterLevel + 20 ||
+        this.pos.y >= height * 0.45
+    )
+        this.vel.y *= -1;
+
+}
+
+  newLevyTarget() {
+
+    // heavy-tailed distance
+    let distance = pow(random(), -1.5) * 30;
+    distance = constrain(distance, 30, 300);
+
+    let angle = random(TWO_PI);
+
+    this.levyTarget = createVector(
+        this.pos.x + cos(angle) * distance,
+        this.pos.y + sin(angle) * distance
+    );
+
+    this.levyTarget.x = constrain(
+        this.levyTarget.x,
+        20,
+        width - 20
+    );
+
+   if(this.state == "exploring"){
+
+    this.levyTarget.y = constrain(
+        this.levyTarget.y,
+        waterLevel + 20,
+        height - 30
+    );
+
+}
+else{
+
+    this.levyTarget.y = constrain(
+        this.levyTarget.y,
+        waterLevel + 20,
+        height * 0.35
+    );
+
+}
+
+  }
+findBestSchool(fishes){
+
+    let best = null;
+    let bestCount = 0;
+
+    for(let school of schools){
+
+        let members = fishes.filter(
+            f => f.target === school.plankton
+        );
+
+        if(members.length > bestCount){
+
+            bestCount = members.length;
+
+            best = school;
+
+        }
+
+    }
+
+    return best;
+
+  }
+  changeState(newState){
+
+    
+    if(this.state !== newState){
+
+      if(newState == "returning"){
+    this.speed = 3.5;
+    }
+    else if(newState == "patrol"){
+        this.speed = 2.4;
+    }
+        console.log(
+            "Shark state:",
+            this.state,
+            "->",
+            newState,
+            "Position:",
+            this.pos.x.toFixed(1),
+            this.pos.y.toFixed(1),
+            "Food:",
+            this.foodEaten
+        );
+
+        this.state = newState;
+    }
+
+}
+}
+
+function SetupFish(){
+ tropicalFish = [];
+  shark = [];
+}
+
+function SpawnFish(){
+  for(let s of schoolTimers){
+
+    if(
+        s.plankton.assigned >= 3 &&
+        !s.counted
+    ){
+
+        schoolsFormed++;
+        s.counted = true;
+
+        if(schoolsFormed == 2){
+            firstSchoolTime = millis();
+        }
+
+    }
+
+}
+ if (frameCount >= nextTropicalFishSpawn) {
+
+    let x;
+    let direction;
+
+    if (random() < 0.5) {
+      x = -30;
+      direction = 1;
+    } else {
+      x = width + 30;
+      direction = -1;
+    }
+
+    let fish = new TropicalFish(
+      x,
+      random(height * 0.4, height * 0.9)
+    );
+
+    fish.vel = createVector(direction, random(-0.2, 0.2));
+
+    tropicalFish.push(fish);
+
+    nextTropicalFishSpawn =
+      frameCount + int(random(120, 240));
+
+  }
+}
+
+function SpawnShark(){
+
+    if(
+        !sharksStarted &&
+        schoolsFormed >= 2 &&
+        millis() - firstSchoolTime > 10000
+    ){
+
+        sharksStarted = true;
+
+
+        for(let i = 0; i < 5; i++){
+
+            let side = random() < 0.5;
+
+
+            let x;
+            let y;
+
+
+            if(side){
+
+                // left side
+                x = -80;
+                y = random(
+                    waterLevel + 40,
+                    height * 0.35
+                );
+
+            }
+            else{
+
+                // right side
+                x = width + 80;
+                y = random(
+                    waterLevel + 40,
+                    height * 0.35
+                );
+
+            }
+
+
+            let s = new Shark(x,y);
+
+
+            // make them enter from their side
+            s.patrolTarget = createVector(
+                random(100,width-100),
+                random(
+                    waterLevel+50,
+                    height*0.35
+                )
+            );
+
+
+            shark.push(s);
+
+        }
+
+    }
+
+}
+
+function UpdateFish(scene){ 
+  for (let b of tropicalFish) {
+    b.update(shark);
+    b.display(scene);
+  }
+  tropicalFish = tropicalFish.filter(f => !f.dead);
+}
+
+function UpdateShark(scene){
+  for (let r of shark) {
+
+    r.update(tropicalFish);
+    r.display(scene);
+
+  }
+
+}
+
+function surfaceY(x) {
+  return (
+    height * 0.2 +
+    sin(x * 0.02 + t) * 18 +
+    sin(x * 0.05 + t * 1.3) * 8
+  );
+}
+//#endregion
+
+//#region Plankton Logic And Rendering
+class Plankton{
+
+  constructor(x,y) {
+    
+    this.pos = createVector(x,y);
+
+    this.size = random(4,7);
+
+    this.offset = random(1000);
+
+    this.assigned = 0;
+
+    this.colorVector = {
+      r: 0,
+      g: randomGaussian(180, 50),
+      b: 0,
+      a: randomGaussian(230, 30)
+    };
+    this.userSpawned = false;
+    this.life = 0;
+    this.fallSpeed = random(0.1, 0.8);
+    this.horizontalSpeed = random(-0.5, 0.5);
+
+  }
+
+  update(){
+
+
+    // User current pushes plankton
+let d = p5.Vector.dist(
+    this.pos,
+    createVector(mouseX, mouseY)
+);
+
+if (d < 120) {
+
+    let push = p5.Vector.sub(
+        this.pos,
+        createVector(mouseX, mouseY)
+    );
+
+    push.normalize();
+
+    push.mult(
+        map(d, 120, 0, 0.02, 0.15)
+    );
+
+    push.add(
+        userCurrent.copy().mult(0.05)
+    );
+
+    this.pos.add(push);
+
+}
+    // Normal plankton drift
+    this.pos.x += map(
+        noise(this.offset, frameCount * 0.003),
+        0,
+        1,
+        -0.5,
+        0.5
+    );
+
+
+    if(this.userSpawned){
+
+        this.life++;
+
+        // individual sinking speed
+        this.pos.y += this.fallSpeed;
+
+
+        // water current
+        this.pos.x += sin(
+            frameCount * 0.02 + this.offset
+        ) * 0.3;
+
+
+        // random horizontal movement
+        this.pos.x += this.horizontalSpeed;
+
+
+        // don't snap into the bottom immediately
+        if(this.pos.y > height - 10){
+
+            this.pos.y = height - 10;
+
+            // become normal plankton
+            this.userSpawned = false;
+
+        }
+
+    }
+    else{
+
+        // normal plankton movement
+        this.pos.y += random(-0.2,0.2);
+
+
+        this.pos.y = constrain(
+            this.pos.y,
+            height * 0.75,
+            height - 5
+        );
+
+    }
+
+}
+
+  display(scene) {
+
+    scene.noStroke();
+
+    scene.fill(
+    this.colorVector.r,
+    this.colorVector.g,
+    this.colorVector.b,
+    this.colorVector.a
+    );
+
+    scene.ellipse(
+      this.pos.x,
+      this.pos.y,
+      this.size
+    );
+
+  }
+
+}
+
+function SetupPlankton(){
+  nextPlanktonSpawn = frameCount + int(random(30, 120));
+  for (let i = 0; i < 80; i++) {
+     plankton.push(
+    new Plankton(
+      random(width),
+      random(height * 0.75, height - 10)
+      )
+    );
+  }
+}
+
+function DrawPlankton() {
+
+  // After some frames spawn a plankton burst of a random int between 2 and 6
+   if (frameCount >= nextPlanktonSpawn) {
+
+    let amount = int(random(2, 6));
+
+  for (let i = 0; i < amount; i++) {
+
+      plankton.push(
+        new Plankton(
+          random(width),
+          random(height * 0.75, height - 10)
+        )
+      );
+
+    }
+
+    // adds time for the next plankton to spawn
+    nextPlanktonSpawn =
+      frameCount + int(random(30, 180));
+  }
+}
+
+function UpdatePlankton(scene){
+
+  // Handles the plankton Update and Render 
+   for (let p of plankton) {
+    p.update();
+    p.display(scene);
+  }
+  // Caps the amount of plantom available to be alive
+  while (plankton.length > 2500) {
+  plankton.shift();
+  }
+}
+
+//#endregion
+function UpdateUserInteraction(){
+
+    let currentMouse = createVector(
+        mouseX ,
+        mouseY
+    );
+
+
+    let mouseVelocity = p5.Vector.sub(
+        currentMouse,
+        previousMouse
+    );
+
+
+    userCurrent.lerp(
+        mouseVelocity,
+        0.2
+    );
+
+
+    previousMouse.set(
+        currentMouse
+    );
+
+
+    userCurrent.mult(0.92);
+
+}
+function mousePressed(){
+
+    if(getAudioContext().state !== "running"){
+        userStartAudio();
+    }
+
+}
+
+function spawnUserPlankton(){
+
+    console.log("Right click called");
+
+    // random cluster center
+    let centerX = random(width);
+    let centerY = random(height * 0.4, height * 0.75);
+
+
+    for(let i = 0; i < 30; i++){
+
+        let p = new Plankton(
+            randomGaussian(centerX, 30),
+            randomGaussian(centerY, 30)
+        );
+
+        p.userSpawned = true;
+        p.fallSpeed = random(0.2,1);
+
+        plankton.push(p);
+    }
+
+}
+function DrawStars(scene){
+
+    // night = 1, day = 0
+    let night = 1 - dayLight;
+
+    if(night <= 0) return;
+
+
+    scene.push();
+
+    scene.noStroke();
+
+    for(let s of stars){
+
+        let alpha =
+            night *
+            map(
+                sin(frameCount * 0.03 + s.twinkle),
+                -1,
+                1,
+                100,
+                255
+            );
+
+
+        scene.fill(
+            255,
+            255,
+            255,
+            alpha
+        );
+
+
+        scene.circle(
+            s.x,
+            s.y,
+            s.size
+        );
+
+    }
+
+    scene.pop();
+
+}
+
+
+```
+
+
 # Project Structure
 
 The simulation is divided into several interconnected systems:
