@@ -32,7 +32,8 @@ export default defineConfig({
 						// Each item here is one entry in the navigation menu.
 						{ label: 'Chapter 0: Randomness', link: '/chapters/01randomness' },
 						{ label: 'Chapter 0: Project', link: '/chapters/emergentoceansimulation' },
-						{ label: 'Chapter 1: Forces', link: '/chapters/forces' },
+						{ label: 'Chapter 1: Particle Life', link: '/chapters/particlelife' },
+						{ label: 'Chapter 2: Forces', link: '/chapters/forces' },
 						
 					],
 				},
