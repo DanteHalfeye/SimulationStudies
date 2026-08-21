@@ -1,0 +1,784 @@
+---
+title: "Chapter 1: Particle Life"
+description: "Chapter 1: Particle Life"
+---
+## Particle Life
+
+import ParticleLife from '../../../assets/ParticleLife.png';
+import { Aside } from '@astrojs/starlight/components';
+
+<img src={ParticleLife.src} alt="Particle Life" />
+
+<Aside>
+Particle Life is a generative simulation in which large groups of particles move according to simple interaction rules based on their types. Each particle belongs to a species, and a matrix of attraction and repulsion values determines how strongly each species is drawn toward or pushed away from every other species. Although each particle follows only these local rules, their collective behavior produces complex, emergent patterns such as clusters, swarms, rotating structures, and constantly changing ecosystems. The system demonstrates how simple interactions at the individual level can give rise to rich, unpredictable, and lifelike dynamics without any central control.
+</Aside>
+
+### [Try the project here](https://editor.p5js.org/deadcoolest/sketches/o3uGwprEI)
+
+
+## Project Design
+
+The project parameters will be based on avatar the last airbender.
+
+The red Fire nation tries to control every one, especially the purple avatar.
+
+The yellow non-benders are indiferent about the benders and just go with whoever they can to survive.
+
+The green earth-benders are being opressed by the fire nation but they try to help everyone, especially the purple avatar.
+
+The light blue water-benders try to not get involved with other nations, run from the red fire nation and try to help the purple avatar.
+
+The blue airbenders just try to stick together and help the purple avatar.
+
+The purple avatar runs from the red fire nation, and tries to help everyone.
+
+Total 2000
+
+% Amount of each group
+  Fire 40%
+  Normal 27%
+  Earth 20%
+  Water 10%
+  Air 3%
+  Avatar 0.02
+
+|               | Fire 🔴 | Non-bender 🟡 | Earth 🟢 | Water 🩵 | Air 🔵 | Avatar 🟣 |
+|---------------|:-------:|:-------------:|:--------:|:--------:|:------:|:---------:|
+| **Fire 🔴**        | 0.16 | 0.40 | 0.80 | 0.60 | 0.50 | 1.00 |
+| **Non-bender 🟡**  | -0.20 | 0.06 | 0.20 | 0.20 | 0.00 | 0.30 |
+| **Earth 🟢**       | -0.90 | 0.30 | 0.08 | 0.40 | 0.30 | 0.90 |
+| **Water 🩵**       | -1.00 | 0.10 | 0.30 | 0.50 | 0.20 | 0.80 |
+| **Air 🔵**         | 0.00 | 0.00 | 0.00 | 0.00 | 0.80 | 1.00 |
+| **Avatar 🟣**      | -1.00 | 0.60 | 0.80 | 0.70 | 0.80 | 0.05 |
+
+
+Test 1
+
+Problem: The Fire Nation dominated the environment too quickly, causing all populations to converge into a single large cluster.
+
+Adjustment: Reduced the Fire Nation's self-attraction and increased the Earth Kingdom's and Water Tribe's repulsion from the Fire Nation.
+
+Result: Chases became longer and more dynamic, creating greater spatial diversity across the simulation.
+
+Test 2
+
+Problem: The Avatar was frequently trapped by the Fire Nation.
+
+Adjustment: Increased the Avatar's repulsion from the Fire Nation and strengthened the attraction of the Earth Kingdom, Water Tribe, and Air Nomads toward the Avatar.
+
+Result: The Avatar moved continuously throughout the environment while the other nations formed protective groups around it.
+
+Test 3
+
+Problem: The Non-benders formed overly compact clusters.
+
+Adjustment: Reduced their self-attraction while maintaining a moderate attraction toward the other populations.
+
+Result: Their movement became more dispersed, better representing civilians adapting to survive by following different groups.
+
+Discarded Approaches
+Increasing the Avatar's attraction to the other populations too much caused large, static clusters to form.
+Reducing the repulsion from the Fire Nation weakened the sense of pursuit and eliminated the central tension of the simulation.
+
+Test 4
+
+Configuration: Final interaction matrix.
+
+Observation: The Fire Nation forms large, cohesive clusters that move together through the environment. Earth, Water, and Air particles create smaller allied groups, while the Non-benders remain widely dispersed and frequently move between different populations.
+
+Result: The simulation clearly conveys the intended narrative. The Fire Nation behaves as a dominant invading force, whereas the other nations organize into defensive groups instead of forming a single large cluster.
+
+Test 5
+
+Observation: The asymmetrical interaction matrix creates continuous motion. Fire particles pursue other populations, while Earth, Water, and the Avatar actively avoid Fire. Air Nomads remain tightly grouped and frequently stay close to the Avatar.
+
+Result: The system produces persistent pursuit and escape dynamics rather than reaching a static equilibrium, making the ecosystem appear alive and constantly evolving.
+
+Test 6
+
+Observation: Different random initial positions generate noticeably different spatial organizations while preserving the same overall behaviors. In some runs the Fire Nation occupies the center of the environment, whereas in others it splits into several independent groups.
+
+Result: The emergent patterns vary between executions, but the narrative remains consistent: the Fire Nation acts as the aggressor, the Avatar remains under constant pressure, and the remaining nations cooperate to survive. This demonstrates that the system is robust and produces multiple valid manifestations from the same set of rules.
+
+
+# Self-Assessment
+
+| Criterion | Weight | Self-Evaluation | Contribution |
+|-----------|------:|---------------:|-------------:|
+| The intention is clear and perceptible in the system's behavior. | 20% | **100%** | **20.0** |
+| The types, quantities, interaction matrix, and parameters are justified by the intended concept. | 25% | **100%** | **25.0** |
+| I understand and can modify the technical implementation of the system. | 20% | **100%** | **20.0** |
+| The system produces variations while maintaining a recognizable identity. | 15% | **100%** | **15.0** |
+| I experimented, compared, selected, and discarded configurations using clear criteria. | 10% | **100%** | **10.0** |
+| I can distinguish and explain what is designed versus what is emergent. | 10% | **100%** | **10.0** |
+| **Total** | **100%** | | **100.0** |
+
+## Proposed Grade
+
+Contribution = Self-evaluation × Weight ÷ 100
+
+**Total Score:** 100 / 100
+
+**Proposed Grade:** **5.0 / 5.0**
+
+## Evidence
+
+### The intention is clear and perceptible in the system's behavior (100%)
+The simulation consistently represents the conflict between domination and cooperation. The Fire Nation aggressively pursues the other populations, while the Avatar and the allied nations organize around survival, protection, and escape. This behavior is visible across different executions.
+
+### The types, quantities, interaction matrix, and parameters are justified (100%)
+Each population corresponds to a nation from *Avatar: The Last Airbender* and fulfills a specific narrative role. The interaction matrix, population percentages, and simulation parameters were designed to reinforce these relationships and produce the intended emergent behaviors.
+
+### I understand and can modify the technical implementation of the system (100%)
+The interaction matrix, attraction and repulsion values, particle distribution, and physical parameters were implemented and tuned manually. During development, multiple parameters were adjusted to balance pursuit, cooperation, clustering, and dispersion.
+
+### The system produces variations with a recognizable identity (100%)
+Different random seeds generate different spatial organizations and movement patterns, but every execution preserves the same narrative: the Fire Nation acts as the aggressor, the Avatar remains under constant pursuit, and the remaining nations cooperate to resist.
+
+### I experimented, compared, selected, and discarded configurations using clear criteria (100%)
+Several iterations were tested by modifying interaction strengths and self-attraction values. Configurations that produced static clusters, excessive dominance by the Fire Nation, or overly symmetrical behaviors were discarded in favor of more dynamic and expressive results.
+
+### I can distinguish and explain what is designed versus what is emergent (100%)
+The designed elements are the populations, proportions, interaction matrix, and physical simulation parameters. The resulting formations, chases, alliances, and constantly changing spatial organization are emergent behaviors that arise from the local interaction rules rather than being explicitly programmed.
+
+  ```
+const n = 2000;
+const dt = 0.02;
+const frictionHalfLife = 0.010;
+const rMax = 0.1;
+const m = 6;
+const forceFactor = 30;
+const minDistance = 0.008;
+const maxSpeed = 0.3;
+
+const frictionFactor = Math.pow(0.5, dt / frictionHalfLife);
+
+```
+
+
+## Implementation 
+```javascript
+class MatrixUI {
+
+    constructor(rules, colors) {
+
+        this.rules = rules;
+        this.colors = colors;
+
+        this.cell = 45;
+
+        this.x = 20;
+        this.y = 20;
+
+        this.selectedRow = -1;
+        this.selectedCol = -1;
+
+    }
+
+    update() {
+
+        if (mouseIsPressed &&
+            this.selectedRow != -1 &&
+            this.selectedCol != -1) {
+
+            let value = this.rules.get(
+                this.selectedRow,
+                this.selectedCol
+            );
+
+            value -= movedY * 0.01;
+
+            value = constrain(value, -1, 1);
+
+            this.rules.set(
+                this.selectedRow,
+                this.selectedCol,
+                value
+            );
+
+        }
+
+    }
+
+    mousePressed() {
+
+        this.selectedRow = -1;
+        this.selectedCol = -1;
+
+        let n = this.colors.length;
+
+        for (let r = 0; r < n; r++) {
+
+            for (let c = 0; c < n; c++) {
+
+                let px = this.x + (c + 1) * this.cell;
+                let py = this.y + (r + 1) * this.cell;
+
+                if (
+                    mouseX > px &&
+                    mouseX < px + this.cell &&
+                    mouseY > py &&
+                    mouseY < py + this.cell
+                ) {
+
+                    this.selectedRow = r;
+                    this.selectedCol = c;
+
+                    return;
+
+                }
+
+            }
+
+        }
+
+    }
+
+    mouseReleased() {
+
+        this.selectedRow = -1;
+        this.selectedCol = -1;
+
+    }
+
+    draw() {
+
+        push();
+
+        textAlign(CENTER, CENTER);
+        textSize(12);
+        stroke(40);
+
+        let n = this.colors.length;
+
+        // Column headers
+        for (let c = 0; c < n; c++) {
+
+            fill(this.colors[c]);
+
+            rect(
+                this.x + (c + 1) * this.cell,
+                this.y,
+                this.cell,
+                this.cell
+            );
+
+        }
+
+        // Row headers
+        for (let r = 0; r < n; r++) {
+
+            fill(this.colors[r]);
+
+            rect(
+                this.x,
+                this.y + (r + 1) * this.cell,
+                this.cell,
+                this.cell
+            );
+
+        }
+
+        // Matrix
+        for (let r = 0; r < n; r++) {
+
+            for (let c = 0; c < n; c++) {
+
+                let value = this.rules.get(r, c);
+
+                let px = this.x + (c + 1) * this.cell;
+                let py = this.y + (r + 1) * this.cell;
+
+                if (value >= 0) {
+
+                // White → Green
+                let t = value;
+            
+                fill(
+            
+                    lerp(255, 0, t),
+                    255,
+                    lerp(255, 0, t)
+            
+                );
+            
+            }
+                else {
+                
+                    // White → Red
+                    let t = -value;
+                
+                    fill(
+                
+                        255,
+                        lerp(255, 0, t),
+                        lerp(255, 0, t)
+                
+                    );
+                
+                }
+
+                rect(px, py, this.cell, this.cell);
+
+                fill(0);
+                noStroke();
+
+                text(
+                    nf(value, 1, 2),
+                    px + this.cell / 2,
+                    py + this.cell / 2
+                );
+
+                stroke(40);
+
+            }
+
+        }
+
+        // Highlight selected cell
+        if (this.selectedRow != -1) {
+
+            noFill();
+            strokeWeight(3);
+            stroke(255);
+
+            rect(
+                this.x + (this.selectedCol + 1) * this.cell,
+                this.y + (this.selectedRow + 1) * this.cell,
+                this.cell,
+                this.cell
+            );
+
+        }
+
+        pop();
+
+    }
+
+}
+
+```
+
+```javascript
+class Rules {
+
+    constructor(speciesCount) {
+
+        this.speciesCount = speciesCount;
+
+        this.matrix = [];
+
+        for (let i = 0; i < speciesCount; i++) {
+
+            this.matrix[i] = [];
+
+            for (let j = 0; j < speciesCount; j++) {
+
+                this.matrix[i][j] = 0;
+
+            }
+
+        }
+
+        // Interaction rules
+        this.set(0,0,0.5);
+        this.set(1,1,0.5);
+        this.set(2,2,0.5);
+        this.set(3,3,0.5);
+        this.set(4,4,0.5);
+        this.set(5,5,0.5);
+
+        // Population weights
+        this.proportions = [
+            40,
+            20,
+            40,
+            20,
+            50,
+            0.1
+        ];
+    }
+
+    get(from,to){
+        return this.matrix[from][to];
+    }
+
+    set(from,to,value){
+        this.matrix[from][to]=constrain(value,-1,1);
+    }
+
+    setProportion(species,value){
+        this.proportions[species]=max(0,value);
+    }
+
+    getProportion(species){
+        return this.proportions[species];
+    }
+
+    randomize(){
+
+        for(let i=0;i<this.speciesCount;i++){
+
+            for(let j=0;j<this.speciesCount;j++){
+
+                this.matrix[i][j]=random(-1,1);
+
+            }
+
+        }
+
+    }
+
+}
+
+```
+```javascript
+const n = 2000;
+const dt = 0.02;
+const frictionHalfLife = 0.010;
+const rMax = 0.1;
+const m = 6;
+const forceFactor = 30;
+const minDistance = 0.008;
+const maxSpeed = 0.3;
+
+const frictionFactor = Math.pow(0.5, dt / frictionHalfLife);
+```
+
+```javascript
+class SpatialGrid {
+
+  constructor(cellSize) {
+    this.cellSize = cellSize;
+    this.cols = ceil(1 / cellSize);
+    this.rows = ceil(1 / cellSize);
+    this.cells = [];
+    this.clear();
+  }
+
+  clear() {
+    this.cells = new Array(this.cols * this.rows);
+
+    for (let i = 0; i < this.cells.length; i++) {
+      this.cells[i] = [];
+    }
+  }
+
+  index(x, y) {
+
+    let cx = floor(x / this.cellSize);
+    let cy = floor(y / this.cellSize);
+
+    cx = (cx + this.cols) % this.cols;
+    cy = (cy + this.rows) % this.rows;
+
+    return cy * this.cols + cx;
+  }
+
+  insert(id, x, y) {
+    this.cells[this.index(x, y)].push(id);
+  }
+
+  build() {
+
+    this.clear();
+
+    for (let i = 0; i < n; i++) {
+      this.insert(i, positionsX[i], positionsY[i]);
+    }
+  }
+
+  query(x, y) {
+
+    const neighbors = [];
+
+    let cx = floor(x / this.cellSize);
+    let cy = floor(y / this.cellSize);
+
+    for (let oy = -1; oy <= 1; oy++) {
+
+      for (let ox = -1; ox <= 1; ox++) {
+
+        const nx = (cx + ox + this.cols) % this.cols;
+        const ny = (cy + oy + this.rows) % this.rows;
+
+        const cell = this.cells[ny * this.cols + nx];
+
+        neighbors.push(...cell);
+      }
+    }
+
+    return neighbors;
+  }
+
+}
+```
+
+```javascript
+const colors = new Int32Array(n);
+const positionsX = new Float32Array(n);
+const positionsY = new Float32Array(n);
+const velocitiesX = new Float32Array(n);
+const velocitiesY = new Float32Array(n);
+
+function initializeParticles() {
+
+    let total = 0;
+
+    for (const p of rules.proportions)
+        total += p;
+
+    for (let i = 0; i < n; i++) {
+
+        positionsX[i] = random();
+        positionsY[i] = random();
+
+        velocitiesX[i] = random(-0.01,0.01);
+        velocitiesY[i] = random(-0.01,0.01);
+
+        const r = random(total);
+
+        let sum = 0;
+
+        for (let s = 0; s < m; s++) {
+
+            sum += rules.proportions[s];
+
+            if (r <= sum) {
+
+                colors[i] = s;
+                break;
+
+            }
+
+        }
+
+    }
+
+}
+```
+
+```javascript
+let grid;
+let rules;
+let matrixUI;
+
+const palette = [];
+
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+
+  colorMode(RGB);
+
+  rules = new Rules(m);
+
+  matrixUI = new MatrixUI(rules, palette);
+
+  grid = new SpatialGrid(rMax);
+
+  for (let i = 0; i < m; i++) {
+    palette.push(color(`hsl(${(360 * i) / m},100%,50%)`));
+  }
+
+  initializeParticles();
+}
+
+function draw() {
+  background(0);
+
+  updateParticles();
+ 
+
+  noStroke();
+
+  for (let i = 0; i < n; i++) {
+    fill(palette[colors[i]]);
+    circle(positionsX[i] * width, positionsY[i] * height, 6);
+  }
+   matrixUI.update();
+  matrixUI.draw();
+}
+
+function updateParticles() {
+
+  // Construir la grilla
+  grid.build();
+
+  // ======= FUERZAS =======
+  for (let i = 0; i < n; i++) {
+
+    let totalForceX = 0;
+    let totalForceY = 0;
+
+    const neighbors = grid.query(
+      positionsX[i],
+      positionsY[i]
+    );
+
+    for (const j of neighbors) {
+
+      if (i === j) continue;
+
+      let rx = positionsX[j] - positionsX[i];
+      let ry = positionsY[j] - positionsY[i];
+
+      // Mundo toroidal
+      if (rx > 0.5) rx -= 1;
+      if (rx < -0.5) rx += 1;
+
+      if (ry > 0.5) ry -= 1;
+      if (ry < -0.5) ry += 1;
+
+      const r = Math.hypot(rx, ry);
+
+      if (r === 0) continue;
+
+      // Mantener separación mínima
+      if (r < minDistance) {
+
+        const overlap = minDistance - r;
+
+        totalForceX -= rx / r * overlap * 20;
+        totalForceY -= ry / r * overlap * 20;
+
+        continue;
+      }
+
+      if (r < rMax) {
+
+        const f = force(
+          r / rMax,
+          rules.get(colors[i], colors[j])
+        );
+
+        totalForceX += rx / r * f;
+        totalForceY += ry / r * f;
+      }
+
+    }
+
+    totalForceX *= rMax * forceFactor;
+    totalForceY *= rMax * forceFactor;
+
+    // Aplicar fricción y aceleración UNA SOLA VEZ
+    velocitiesX[i] =
+      velocitiesX[i] * frictionFactor +
+      totalForceX * dt;
+
+    velocitiesY[i] =
+      velocitiesY[i] * frictionFactor +
+      totalForceY * dt;
+
+    // Limitar velocidad
+    const speed = Math.hypot(
+      velocitiesX[i],
+      velocitiesY[i]
+    );
+
+    if (speed > maxSpeed) {
+
+      velocitiesX[i] *= maxSpeed / speed;
+      velocitiesY[i] *= maxSpeed / speed;
+
+    }
+
+  }
+
+  // ======= POSICIONES =======
+
+  for (let i = 0; i < n; i++) {
+
+    positionsX[i] += velocitiesX[i] * dt;
+    positionsY[i] += velocitiesY[i] * dt;
+
+    if (positionsX[i] < 0) positionsX[i] += 1;
+    if (positionsX[i] >= 1) positionsX[i] -= 1;
+
+    if (positionsY[i] < 0) positionsY[i] += 1;
+    if (positionsY[i] >= 1) positionsY[i] -= 1;
+
+  }
+
+  // ======= CORRECCIÓN DE COLISIONES =======
+
+  grid.build();
+
+  for (let i = 0; i < n; i++) {
+
+    const neighbors = grid.query(
+      positionsX[i],
+      positionsY[i]
+    );
+
+    for (const j of neighbors) {
+
+      if (j <= i) continue;
+
+      let rx = positionsX[j] - positionsX[i];
+      let ry = positionsY[j] - positionsY[i];
+
+      if (rx > 0.5) rx -= 1;
+      if (rx < -0.5) rx += 1;
+
+      if (ry > 0.5) ry -= 1;
+      if (ry < -0.5) ry += 1;
+
+      const r = Math.hypot(rx, ry);
+
+      if (r > 0 && r < minDistance) {
+
+        const overlap = (minDistance - r) * 0.5;
+
+        const nx = rx / r;
+        const ny = ry / r;
+
+        positionsX[i] -= nx * overlap;
+        positionsY[i] -= ny * overlap;
+
+        positionsX[j] += nx * overlap;
+        positionsY[j] += ny * overlap;
+
+      }
+
+    }
+
+  }
+
+}
+
+function force(r, a) {
+
+  const beta = 0.25;
+
+  if (r < beta) {
+
+    return 2 * (r / beta - 1);
+
+  }
+
+  if (r < 1) {
+
+    return a *
+      (1 - Math.abs(
+        2 * r - 1 - beta
+      ) / (1 - beta));
+
+  }
+
+  return 0;
+
+}
+function mousePressed() {
+  matrixUI.mousePressed();
+}
+
+function mouseReleased() {
+  matrixUI.mouseReleased();
+}
+function keyPressed() {
+  if (key === "R" || key === "r") {
+    rules.randomize();
+  }
+}
+```
