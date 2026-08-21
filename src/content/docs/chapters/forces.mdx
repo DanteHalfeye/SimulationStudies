@@ -1,0 +1,720 @@
+---
+title: "Chapter 2: Forces"
+description: "Chapter 2: Forces"
+---
+## Froces and music
+
+# Instrument Log — GPU Particle Force Instrument
+
+## 1. Functional and Published Instrument
+
+**Instrument name:** GPU Particle Force Instrument
+
+**Technology:** Three.js + WebGPU + TSL Compute Shaders
+
+**Status:** Functional GPU-based particle simulation with LAB and PERFORMANCE modes.
+
+**Public URL:** `https://dantehalfeye.github.io/Forces-Simulation-Instrument/`
+
+### Modes
+
+#### LAB Mode
+
+**LAB** is designed for experimentation and parameter exploration. It displays the reference axes and provides access to the parameter control panel.
+
+Main controls:
+
+- `P` → Switch between LAB and PERFORMANCE.
+- `R` → Reset the simulation.
+- `2` → Activate radial
+- `3` → Radial attraction.
+- `4` → Radial repulsion.
+- `5` → Vortex.
+- `6` → Toggle the stylized shader.
+
+#### PERFORMANCE Mode
+
+**PERFORMANCE** hides the experimental LAB interface and axes, providing a cleaner visual presentation.
+
+The GPU simulation continues running while the instrument is displayed.
+
+---
+
+# 2. System Map
+
+The system is organized into five main stages:
+
+```text
+                    ┌────────────────────┐
+                    │   createParameters │
+                    │     Parameters     │
+                    └─────────┬──────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────┐
+│                    GPU STATE                        │
+│                                                     │
+│ positionBuffer : position of each particle         │
+│ velocityBuffer : velocity of each particle         │
+└────────────────────────┬────────────────────────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │       FORCES         │
+              │                      │
+              │ Wind                 │
+              │ Radial               │
+              │ Vortex               │
+              │ Drag                 │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │     INTEGRATION      │
+              │                      │
+              │ F = ma               │
+              │ v += F · dt          │
+              │ p += v · dt          │
+              │ maxSpeed             │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │      BOUNDARIES      │
+              │                      │
+              │ Periodic wrapping    │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │       RENDER         │
+              │                      │
+              │ InstancedMesh        │
+              │ SpriteNodeMaterial   │
+              │ Motion Blur          │
+              │ Dot Screen           │
+              └──────────────────────┘
+```
+
+## File Map
+
+| File | Responsibility |
+|---|---|
+| `src/simulation/createSimulation.js` | GPU state, initialization, forces, integration, and particle rendering |
+| `src/simulation/parameters.js` | Simulation parameters and controls |
+| `src/ui/labPanel.js` | LAB experimentation interface |
+| `src/main.js` | Scene, camera, WebGPU, modes, keyboard controls, presets, and post-processing |
+| `src/style.css` | Interface styling |
+| `index.html` | Application mount point |
+
+---
+
+## State
+
+Each particle has two main state variables:
+
+```text
+positionBuffer[i] = position
+velocityBuffer[i] = velocity
+```
+
+Both buffers are GPU storage arrays created with `instancedArray`.
+
+The current particle count is:
+
+```js
+const PARTICLE_COUNT = 4194304;
+```
+
+This corresponds to:
+
+```text
+2^22 = 4,194,304 particles
+```
+
+The comment in the source code currently says `2^17`, but the actual runtime value is `2^22`.
+
+---
+
+## Initialization
+
+Each particle receives a pseudo-random initial position and velocity using `hash()`:
+
+```text
+Initial position:
+p = random(-0.5, 0.5) · boundsSize · 0.45
+
+Initial velocity:
+v = random(-0.5, 0.5) · initialSpeed
+```
+
+Initialization is performed in parallel using the GPU compute pass:
+
+```text
+Initialize Particles
+```
+
+---
+
+## Integration
+
+The simulation uses unit mass:
+
+```text
+a = F
+```
+
+and Semi-Implicit Euler integration:
+
+```text
+v(t + dt) = v(t) + F · dt
+
+p(t + dt) = p(t) + v(t + dt) · dt
+```
+
+Velocity is limited by `maxSpeed`.
+
+Periodic boundary conditions are then applied:
+
+```text
+Particles leaving one side of the simulation
+re-enter from the opposite side.
+```
+
+---
+
+## Rendering
+
+Rendering does not recalculate the physics.
+
+It directly consumes:
+
+```text
+positionBuffer → particle position
+velocityBuffer → particle speed/color
+```
+
+Particles are rendered using:
+
+```text
+THREE.InstancedMesh
++
+THREE.SpriteNodeMaterial
+```
+
+Particle color is based on velocity:
+
+```text
+low speed  → cyan
+high speed → red
+```
+
+The rendered scene is then processed through:
+
+```text
+Scene Pass
+    ↓
+Motion Blur
+    ↓
+Optional Dot Screen
+    ↓
+Final Output
+```
+
+---
+
+# 3. Force Sheets
+
+# Force 1 — Radial Attraction / Repulsion
+
+### Description
+
+The radial force points between each particle and the attractor:
+
+```text
+toAttractor = attractor - position
+```
+
+The normalized direction is:
+
+```text
+radialDirection =
+    (attractor - position) / distance
+```
+
+The resulting force is:
+
+```text
+F_radial =
+    radialDirection
+    · radialStrength
+    / distance²
+    · radialEnabled
+```
+
+Therefore:
+
+```text
+radialStrength > 0 → attraction
+
+radialStrength < 0 → repulsion
+```
+
+### Parameters
+
+- `attractor`
+- `radialStrength`
+- `radialEnabled`
+- `softening`
+
+### Prediction
+
+**Attraction:**
+
+```text
+particles → attractor
+```
+
+Particles move toward the attractor, with force increasing as distance decreases, limited by `softening`.
+
+**Repulsion:**
+
+```text
+particles ←→ attractor
+```
+
+Particles are pushed away from the attractor.
+
+### Design Decision
+
+The same force equation can generate two opposite behaviors by changing only the sign of `radialStrength`.
+
+This makes the radial force one of the main expressive controls of the instrument.
+
+---
+
+# Force 2 — Vortex
+
+### Description
+
+The vortex force uses the radial direction and calculates a tangent around the Z axis:
+
+```text
+tangent = Z × radialDirection
+```
+
+The resulting force is:
+
+```text
+F_vortex =
+    tangent
+    · vortexStrength
+    · vortexEnabled
+```
+
+### Parameters
+
+- `vortexStrength`
+- `vortexEnabled`
+- `radialStrength`
+- `radialEnabled`
+- `dragCoefficient`
+- `dragEnabled`
+
+### Prediction
+
+The radial force pulls particles toward the attractor while the tangent force introduces a perpendicular component:
+
+```text
+radial force → movement toward center
+tangent force → orbital movement
+
+combined result → curved / spiral trajectories
+```
+
+### Design Decision
+
+The vortex is the central expressive force because it transforms linear attraction into circular and spiral motion.
+
+The current vortex preset uses:
+
+```text
+radialStrength = 10
+vortexStrength = 30
+dragCoefficient = 0.8
+```
+
+with the relevant forces enabled.
+
+---
+
+# Force 3 — Drag
+
+### Description
+
+Drag is proportional and opposite to velocity:
+
+```text
+F_drag = -c · v
+```
+
+The implementation is:
+
+```text
+force +=
+    v
+    · dragCoefficient
+    · dragEnabled
+    · -1
+```
+
+### Parameters
+
+- `dragCoefficient`
+- `dragEnabled`
+
+### Prediction
+
+Higher velocity produces stronger resistance:
+
+```text
+high velocity
+     ↓
+more drag
+     ↓
+velocity decreases
+```
+
+### Design Decision
+
+Drag prevents the system from becoming excessively energetic and makes the resulting motion more controlled and fluid.
+
+It is particularly important in the vortex preset.
+
+---
+
+# 4. Test Log
+
+## Test 1 — Attraction
+
+**Control:** `3`
+
+**Configuration:**
+
+```text
+radialStrength = 300
+```
+
+The attractor position is randomized.
+
+### Hypothesis
+
+Particles should move toward the attractor according to a force whose magnitude increases as the distance decreases.
+
+### Expected Result
+
+Particles should concentrate around the attractor.
+
+### Observation
+
+The movement provides a clear visualization of the relationship between particle position and force.
+
+---
+
+## Test 2 — Repulsion
+
+**Control:** `4`
+
+**Configuration:**
+
+```text
+radialStrength = -300
+```
+
+### Hypothesis
+
+Changing the sign of the radial force should reverse its behavior.
+
+### Expected Result
+
+Particles should move away from the attractor rather than toward it.
+
+### Observation
+
+The test demonstrates that the direction of a physical force can be changed through a single parameter.
+
+---
+
+## Test 3 — Vortex
+
+**Control:** `5`
+
+**Configuration:**
+
+```text
+radialStrength = 10
+vortexStrength = 30
+dragCoefficient = 0.8
+```
+
+with:
+
+```text
+radialEnabled = true
+vortexEnabled = true
+dragEnabled = true
+```
+
+### Hypothesis
+
+Combining radial and tangential forces should create curved and orbital particle trajectories.
+
+### Expected Result
+
+Particles should form a vortex or spiral-like structure around the attractor.
+
+### Observation
+
+This test produces the most complex behavior among the five baseline tests and represents the main expressive behavior of the instrument.
+
+---
+
+# 5. Specific Force Test — Radial + Vortex + Drag
+
+## Objective
+
+Evaluate the interaction between the three forces that define the central behavior of the instrument.
+
+### Configuration
+
+```text
+radialStrength   = 10
+vortexStrength   = 30
+dragCoefficient  = 0.8
+
+radialEnabled    = 1
+vortexEnabled    = 1
+dragEnabled      = 1
+```
+
+### Hypothesis
+
+The radial force provides movement toward the attractor, the vortex provides a perpendicular tangential component, and drag progressively removes energy from the system.
+
+Therefore:
+
+```text
+F_total =
+    F_radial
+    + F_vortex
+    + F_drag
+```
+
+### Prediction
+
+Without the vortex:
+
+```text
+particle
+    ↓
+attractor
+```
+
+With radial + vortex:
+
+```text
+        ↘
+      ↘
+    ●  →   curved trajectory
+      ↗
+        ↗
+```
+
+With radial + vortex + drag:
+
+```text
+wide spiral
+     ↓
+tighter spiral
+     ↓
+stabilized motion
+```
+
+### Expected Result
+
+The interaction should generate a visible vortex structure, with particles following curved trajectories around the attractor while drag reduces their velocity.
+
+### Design Decision
+
+This combination was selected as the central force system because it creates a clear relationship between:
+
+```text
+position
+   ↓
+radial force
+   ↓
+tangential force
+   ↓
+orbital trajectory
+   ↓
+drag
+   ↓
+stabilization
+```
+
+This makes the particle simulation an expressive visual instrument where changes in physical parameters produce immediately visible transformations.
+
+---
+
+# 6. Interaction Mapping
+
+| Input | Action |
+|---|---|
+| `P` | LAB ↔ PERFORMANCE |
+| `R` | Reset particles |
+| `2` | Wind test |
+| `3` | Attraction |
+| `4` | Repulsion |
+| `5` | Vortex |
+| `6` | Toggle Dot Screen shader |
+| LAB panel | Modify simulation parameters |
+| Attractor | Automatically changes position every 200 ms |
+
+The attractor is repositioned within:
+
+```text
+x ∈ [-boundsSize/2, boundsSize/2]
+y ∈ [-boundsSize/2, boundsSize/2]
+z = 0
+```
+
+This continuously changes the force field during execution.
+
+---
+
+# 7. Technical Design Decisions
+
+## GPU Compute
+
+The simulation is executed using WebGPU compute shaders rather than updating millions of particles on the CPU.
+
+The main pipeline is:
+
+```text
+GPU state
+    ↓
+compute forces
+    ↓
+integrate
+    ↓
+updated GPU state
+    ↓
+render
+```
+
+This architecture allows the instrument to operate with millions of particles.
+
+## Periodic Boundaries
+
+Instead of deleting particles when they leave the simulation volume:
+
+```text
+p = mod(p + half, boundsSize) - half
+```
+
+the particles re-enter from the opposite side.
+
+This keeps the particle count constant and prevents the simulation from becoming empty.
+
+## Speed-Based Color
+
+Particle color represents velocity magnitude:
+
+```text
+speed / maxSpeed
+```
+
+is used as the interpolation value between:
+
+```text
+cyan → red
+```
+
+Therefore, color acts as an additional visual representation of the physical state.
+
+## Post-Processing
+
+The visual motion is reinforced using:
+
+```text
+Motion Blur
+```
+
+and optionally:
+
+```text
+Dot Screen
+```
+
+This transforms the raw physical simulation into a stronger audiovisual presentation.
+
+---
+
+# 8. Conclusion
+
+The instrument implements a GPU particle system based on independent forces that are combined before integration.
+
+The fundamental model is:
+
+```text
+state
+  ↓
+forces
+  ↓
+acceleration
+  ↓
+velocity
+  ↓
+position
+  ↓
+render
+```
+
+The most important combination is:
+
+```text
+radial attraction
+       +
+tangential vortex force
+       +
+drag
+```
+
+because it creates the vortex behavior and provides the main visual identity of the instrument.
+
+The architecture allows direct experimentation with the relationship between physical parameters and audiovisual output while keeping the simulation and rendering systems largely separated.
+
+
+
+# Visual Score : 
+
+
+Floating Points - LesAlpx  https://www.youtube.com/watch?v=S8fFo4REHOE&list=RDS8fFo4REHOE&start_radio=1
+
+minute 0: start vortex
+minute 1:15 Change postprocessing
+minute 1:50 stop vortex 
+minute 1:50 stop vortex and absorb
+minute 3:55 Absorb and let it do whatever
+
+Improvise all you want
+
+| **Criterion** | **Weight** | **What the evidence must demonstrate** | **Assessment / Evidence** |
+|---|---:|---|---|
+| **System Traceability and Understanding** | 25 | I can identify and explain the system state, forces, integration, rendering, and controls. I can also identify which parts were produced or modified with AI assistance. | |
+| **Force Algorithm Verification** | 25 | I studied the project in detail. Even if I do not understand every piece of syntax, I can identify its architecture and components, isolate a central force, formulate a prediction, execute and analyze it, compare the result, deliberately change a sign or parameter, and explain the difference. | |
+| **Force Design and Intent** | 20 | The forces and their parameters communicate a perceptible artistic intention. The behavior emerges from the dynamics rather than from pre-drawn or predefined trajectories. | |
+| **Instrument, Score, and Interpretation** | 15 | The score connects listening with design decisions. I selected a small number of expressive controls and can conduct the system live without the audio automatically controlling it. | |
+| **Experimentation and Critical Thinking About AI** | 10 | I compared alternatives, documented findings and rejected approaches, corrected AI-generated proposals, and can justify why I kept the presented version. | |
+| **Technical Delivery and Documentation** | 5 | The public URL works and the logbook makes the development process verifiable. | |
+| **Total** | **100** | | |
