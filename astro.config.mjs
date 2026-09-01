@@ -34,7 +34,8 @@ export default defineConfig({
 						{ label: 'Chapter 0: Project', link: '/chapters/emergentoceansimulation' },
 						{ label: 'Chapter 1: Particle Life', link: '/chapters/particlelife' },
 						{ label: 'Chapter 2: Forces', link: '/chapters/forces' },
-						
+						{ label: 'Chapter 3: Oscilation', link: '/chapters/kuramoto' },
+						{ label: 'Chapter 4: Networks', link: '/chapters/networks' },
 					],
 				},
 				{

@@ -1,0 +1,1663 @@
+---
+title: "Chapter 3: Kuramoto Bats"
+description: "Chapter 2: Kuramoto Bats"
+---
+
+# Kuramoto Bats
+
+## Project Overview
+
+**Kuramoto Bats** is an interactive audiovisual game built around a network of Kuramoto oscillators.
+
+The project combines:
+
+- Kuramoto synchronization
+- Interactive player influence
+- Phase-based enemy behavior
+- Different enemy personalities
+- Procedural movement
+- Audio synthesis
+- Visual feedback
+- Phase-based events
+- Synchronization states
+- Player perturbations
+
+### [Try the project here](https://editor.p5js.org/deadcoolest/sketches/cxxGvhSTx)
+The main idea is that each bat behaves as an oscillator with its own **phase** and **natural frequency**. The bats continuously influence each other through the Kuramoto synchronization model.
+
+The player can interfere with this system by moving around the arena, influencing nearby bats, and creating global or individual phase perturbations.
+
+The resulting synchronization level controls the overall state of the system.
+
+---
+
+# Core Concept
+
+Each bat is an oscillator.
+
+Every oscillator has:
+
+- A current phase
+- A natural frequency
+- A position
+- A personality
+- Movement behavior
+- Audio behavior
+
+The Kuramoto system makes the oscillators influence one another.
+
+The basic model is:
+
+```text
+phase change =
+    natural frequency
+    +
+    influence from other oscillators
+```
+
+The strength of this interaction is controlled by `K`.
+
+The system also calculates an **order parameter**, usually called `R`, which represents how synchronized the entire group is.
+
+```text
+R ≈ 0
+    → disorganized
+
+R ≈ 1
+    → synchronized
+```
+
+---
+
+# Global Variables
+
+## `kuramoto`
+
+```js
+let kuramoto;
+```
+
+Stores the main `Kuramoto` object.
+
+It manages the oscillator network and contains:
+
+- The coupling strength
+- The frequency spread
+- The actors
+- The Kuramoto update
+- The synchronization calculation
+
+This is the main mathematical system of the project.
+
+---
+
+## `actors`
+
+```js
+let actors = [];
+```
+
+An array containing all the bats.
+
+Each element is an `Actor`.
+
+For example:
+
+```text
+actors[0]
+actors[1]
+actors[2]
+...
+actors[8]
+```
+
+Each actor has its own phase, frequency, position, personality, and gameplay state.
+
+---
+
+## `soundManager`
+
+```js
+let soundManager;
+```
+
+Controls the audio system.
+
+It creates an oscillator for each bat and changes its:
+
+- Frequency
+- Amplitude
+- Attack sounds
+- Perturbation sounds
+- Collective-state sounds
+
+The audio system uses the Kuramoto state as input.
+
+---
+
+## `player`
+
+```js
+let player;
+```
+
+Represents the player inside the arena.
+
+The player can influence nearby bats.
+
+The player interaction changes oscillator phases, so it acts as an external influence on the Kuramoto system.
+
+---
+
+# Population Variables
+
+## `NUM_ACTORS`
+
+```js
+const NUM_ACTORS = 9;
+```
+
+Number of bats/oscillators in the system.
+
+Therefore:
+
+```text
+N = 9
+```
+
+The Kuramoto system calculates interactions between these 9 oscillators.
+
+---
+
+# Canvas Variables
+
+## `CANVAS_WIDTH`
+
+```js
+const CANVAS_WIDTH = 1000;
+```
+
+Width of the p5.js canvas in pixels.
+
+---
+
+## `CANVAS_HEIGHT`
+
+```js
+const CANVAS_HEIGHT = 700;
+```
+
+Height of the p5.js canvas in pixels.
+
+---
+
+## `ARENA_MARGIN`
+
+```js
+const ARENA_MARGIN = 35;
+```
+
+Distance that bats are kept away from the canvas boundaries.
+
+It prevents bats from moving completely outside the playable area.
+
+This is a gameplay variable, not a Kuramoto variable.
+
+---
+
+# Kuramoto Variables
+
+## `K_MIN`
+
+```js
+const K_MIN = 0.0;
+```
+
+Minimum possible value of the coupling strength.
+
+At:
+
+```text
+K = 0
+```
+
+the bats no longer synchronize through the Kuramoto coupling.
+
+Each oscillator mostly follows its own natural frequency.
+
+---
+
+## `K_MAX`
+
+```js
+const K_MAX = 6.0;
+```
+
+Maximum coupling value allowed by the controls.
+
+---
+
+## `INITIAL_K`
+
+```js
+const INITIAL_K = 0.25;
+```
+
+Starting coupling strength.
+
+A low value means the oscillators initially have relatively weak influence over each other.
+
+Increasing `K` makes synchronization stronger.
+
+---
+
+# Natural Frequency Variables
+
+## `OMEGA_SPREAD_MIN`
+
+```js
+const OMEGA_SPREAD_MIN = 0.05;
+```
+
+Smallest allowed difference between the oscillators' natural frequencies.
+
+---
+
+## `OMEGA_SPREAD_MAX`
+
+```js
+const OMEGA_SPREAD_MAX = 2.0;
+```
+
+Largest allowed frequency spread.
+
+---
+
+## `INITIAL_OMEGA_SPREAD`
+
+```js
+const INITIAL_OMEGA_SPREAD = 0.8;
+```
+
+Initial amount of difference between oscillator natural frequencies.
+
+A larger spread makes synchronization harder because the oscillators naturally want to move at different speeds.
+
+---
+
+# Bat Movement Variables
+
+## `BAT_MIN_SPEED`
+
+```js
+const BAT_MIN_SPEED = 20;
+```
+
+Minimum normal movement speed of a bat.
+
+---
+
+## `BAT_MAX_SPEED`
+
+```js
+const BAT_MAX_SPEED = 180;
+```
+
+Maximum normal movement speed.
+
+---
+
+## `BAT_ATTACK_SPEED`
+
+```js
+const BAT_ATTACK_SPEED = 360;
+```
+
+Movement speed when a bat attacks the player.
+
+Attack movement is intentionally much faster than normal movement.
+
+---
+
+## `BAT_ATTACK_DURATION`
+
+```js
+const BAT_ATTACK_DURATION = 0.45;
+```
+
+Duration of a bat's attack.
+
+Measured in seconds.
+
+---
+
+## `BAT_INFLUENCE_RADIUS`
+
+```js
+const BAT_INFLUENCE_RADIUS = 150;
+```
+
+Maximum distance at which the player can influence a bat.
+
+If the bat is farther than this distance, the player's influence becomes zero.
+
+---
+
+## `PLAYER_RADIUS`
+
+```js
+const PLAYER_RADIUS = 10;
+```
+
+Collision radius of the player.
+
+It is used to determine when a bat catches the player.
+
+---
+
+# Game State Variables
+
+## `score`
+
+```js
+let score = 0;
+```
+
+Tracks the number of attacks/events generated during the game.
+
+---
+
+## `globalPulse`
+
+```js
+let globalPulse = 0;
+```
+
+Controls a visual pulse effect on the player.
+
+It is mainly a visual feedback variable.
+
+---
+
+## `gameOver`
+
+```js
+let gameOver = false;
+```
+
+Determines whether the game has ended.
+
+When `true`, the game stops normal gameplay and displays the game-over screen.
+
+---
+
+## `showHelp`
+
+```js
+let showHelp = true;
+```
+
+Controls whether the instructions are displayed.
+
+---
+
+## `lastState`
+
+```js
+let lastState = "";
+```
+
+Stores the previous collective synchronization state.
+
+The system uses it to detect when the collective state changes.
+
+For example:
+
+```text
+DISORDER
+    ↓
+PARTIAL ORGANIZATION
+```
+
+A sound can then be triggered only when the state changes.
+
+---
+
+# Actor Variables
+
+Every `Actor` contains several important variables.
+
+---
+
+## `theta`
+
+```js
+this.theta
+```
+
+The current phase of the oscillator.
+
+This is one of the most important variables in the entire project.
+
+It represents where the oscillator currently is within its cycle.
+
+A phase can be thought of as moving around a circle:
+
+```text
+0 → π/2 → π → 3π/2 → 2π → 0
+```
+
+When it reaches `2π`, it wraps back to `0`.
+
+The Kuramoto model changes `theta` over time.
+
+---
+
+## `omega`
+
+```js
+this.omega
+```
+
+The natural frequency of the oscillator.
+
+It determines how quickly the oscillator naturally changes its phase.
+
+An oscillator with a larger `omega` naturally rotates faster.
+
+Important:
+
+```text
+theta = current phase
+omega = natural phase speed
+```
+
+They are not the same thing.
+
+---
+
+## `previousTheta`
+
+```js
+this.previousTheta
+```
+
+Stores the phase from the previous frame.
+
+It is used to determine whether an actor has crossed a particular phase.
+
+For example, an event can happen whenever the actor passes phase `0`.
+
+---
+
+## `events`
+
+```js
+this.events = [];
+```
+
+Stores events associated with specific oscillator phases.
+
+Example:
+
+```js
+actor.addEvent(0, callback);
+```
+
+This means:
+
+```text
+When the oscillator reaches phase 0
+→ execute callback
+```
+
+This is useful for synchronizing gameplay and sound with the oscillator.
+
+---
+
+## `eventCooldown`
+
+```js
+this.eventCooldown
+```
+
+Prevents an event from triggering repeatedly in consecutive frames.
+
+---
+
+## `eventCooldownDuration`
+
+```js
+this.eventCooldownDuration = 0.12;
+```
+
+Length of the event cooldown.
+
+Measured in seconds.
+
+---
+
+## `id`
+
+```js
+actor.id
+```
+
+Unique index for each actor.
+
+The IDs are:
+
+```text
+0 → first actor
+1 → second actor
+2 → third actor
+...
+8 → ninth actor
+```
+
+The sound manager uses this ID to associate each actor with its corresponding audio oscillator.
+
+---
+
+## `personality`
+
+```js
+actor.personality
+```
+
+Determines the behavior type of the bat.
+
+There are four personalities:
+
+```text
+0 → Pulse
+1 → Orbit
+2 → Hunter
+3 → Double Phase
+```
+
+Personality affects movement, visuals, audio, and response to player influence.
+
+It does not directly modify the Kuramoto coupling equation.
+
+---
+
+## `x`
+
+```js
+actor.x
+```
+
+Horizontal position of the actor.
+
+Measured in pixels.
+
+---
+
+## `y`
+
+```js
+actor.y
+```
+
+Vertical position of the actor.
+
+Measured in pixels.
+
+---
+
+## `size`
+
+```js
+actor.size
+```
+
+Base visual size of the bat.
+
+It is also used for collision calculations.
+
+---
+
+## `attackTheta`
+
+```js
+actor.attackTheta
+```
+
+Angle/direction used during an attack.
+
+When a bat attacks, this points toward the player.
+
+---
+
+## `attacking`
+
+```js
+actor.attacking
+```
+
+Boolean that determines whether the actor is currently attacking.
+
+```text
+true
+→ attacking
+
+false
+→ normal behavior
+```
+
+---
+
+## `attackTimer`
+
+```js
+actor.attackTimer
+```
+
+Tracks how long the current attack has been active.
+
+---
+
+## `energy`
+
+```js
+actor.energy
+```
+
+Represents the bat's current visual/gameplay energy.
+
+It affects things such as:
+
+- Size
+- Brightness
+- Attack visuals
+- Audio amplitude
+
+It generally increases during important events and then decays.
+
+---
+
+## `perturbation`
+
+```js
+actor.perturbation
+```
+
+Represents the visual state after the oscillator has been perturbed.
+
+It creates feedback when the player interferes with an actor.
+
+---
+
+## `hitFlash`
+
+```js
+actor.hitFlash
+```
+
+Temporary visual flash used when the actor is affected.
+
+---
+
+## `selected`
+
+```js
+actor.selected
+```
+
+Determines whether the actor is currently selected/highlighted by the player.
+
+---
+
+# Kuramoto System Variables
+
+## `this.K`
+
+```js
+this.K
+```
+
+The coupling strength.
+
+It determines how strongly oscillators influence one another.
+
+Higher:
+
+```text
+K ↑
+→ stronger synchronization force
+```
+
+Lower:
+
+```text
+K ↓
+→ weaker synchronization force
+```
+
+---
+
+## `this.omegaSpread`
+
+```js
+this.omegaSpread
+```
+
+Controls how different the natural frequencies are.
+
+Higher spread:
+
+```text
+oscillators have more different natural speeds
+→ synchronization is harder
+```
+
+Lower spread:
+
+```text
+oscillators have more similar natural speeds
+→ synchronization is easier
+```
+
+---
+
+## `this.actors`
+
+```js
+this.actors
+```
+
+Reference to the oscillator population.
+
+The Kuramoto class uses this array to calculate the interaction between every oscillator.
+
+---
+
+# The Kuramoto Update
+
+The central calculation is:
+
+```js
+coupling += Math.sin(
+    other.theta - actor.theta
+);
+```
+
+This calculates the phase difference between two oscillators.
+
+The result is added for all other oscillators.
+
+Then:
+
+```js
+coupling /= N;
+```
+
+calculates the average influence.
+
+Finally:
+
+```js
+derivatives[i] =
+    actor.omega +
+    this.K * coupling;
+```
+
+combines:
+
+```text
+natural frequency
++
+synchronization influence
+```
+
+The phase is then updated:
+
+```js
+actor.theta += derivative * dt;
+```
+
+This is the actual Kuramoto simulation.
+
+---
+
+# `dt`
+
+```js
+const dt = Math.min(
+    deltaTime / 1000,
+    0.05
+);
+```
+
+`dt` represents the amount of time that passed since the previous frame.
+
+p5.js gives `deltaTime` in milliseconds.
+
+Therefore:
+
+```text
+deltaTime / 1000
+```
+
+converts it into seconds.
+
+The `Math.min()` limits the maximum step to `0.05` seconds.
+
+This prevents the simulation from making an extremely large jump if the frame rate suddenly drops.
+
+---
+
+# Natural Frequency Calculation
+
+The project generates frequencies around a center value:
+
+```js
+const center = 1.0;
+```
+
+Each actor receives a different natural frequency.
+
+The system distributes the frequencies across the available range.
+
+For nine actors, the initial frequencies are approximately:
+
+```text
+0.2
+0.4
+0.6
+0.8
+1.0
+1.2
+1.4
+1.6
+1.8
+```
+
+This creates a population where some oscillators naturally rotate faster than others.
+
+---
+
+# Order Parameter
+
+The variable:
+
+```js
+order
+```
+
+stores the synchronization level.
+
+The calculation uses:
+
+```js
+Math.cos(actor.theta)
+Math.sin(actor.theta)
+```
+
+for every oscillator.
+
+The result is the Kuramoto order parameter:
+
+```text
+R
+```
+
+It ranges between:
+
+```text
+0 → low synchronization
+1 → high synchronization
+```
+
+---
+
+# Collective State
+
+The project converts the order parameter into three game states:
+
+```text
+R < 0.35
+    ↓
+DISORDER
+```
+
+```text
+0.35 ≤ R < 0.75
+    ↓
+PARTIAL ORGANIZATION
+```
+
+```text
+R ≥ 0.75
+    ↓
+STABLE SYNCHRONIZATION
+```
+
+These thresholds are game-design choices rather than requirements of the Kuramoto model.
+
+---
+
+# Player Influence
+
+The player can influence individual oscillators.
+
+The system first calculates the distance between:
+
+```text
+player
+    ↓
+actor
+```
+
+If the actor is inside the influence radius, the player can modify its phase.
+
+The closer the actor is to the player, the stronger the influence.
+
+This creates an external phase-control mechanism.
+
+---
+
+# External Influence
+
+The standard Kuramoto model is:
+
+```text
+phase change =
+    natural frequency
+    +
+    oscillator coupling
+```
+
+This project adds:
+
+```text
++
+    player/game influence
+```
+
+Conceptually:
+
+```text
+phase change =
+    natural frequency
+    +
+    Kuramoto coupling
+    +
+    external influence
+```
+
+This makes the project an interactive Kuramoto system rather than a pure mathematical simulation.
+
+---
+
+# Global Perturbation
+
+The global perturbation changes every oscillator's phase.
+
+Conceptually:
+
+```text
+all actors
+    ↓
+random phase shift
+```
+
+This temporarily disrupts synchronization.
+
+The Kuramoto system then continues running and can attempt to synchronize the oscillators again.
+
+This creates an important gameplay loop:
+
+```text
+Synchronization
+      ↓
+Perturbation
+      ↓
+Disorder
+      ↓
+Kuramoto coupling
+      ↓
+Reorganization
+      ↓
+Synchronization
+```
+
+---
+
+# Individual Perturbation
+
+The player can also perturb one specific actor.
+
+This changes that actor's phase without directly changing the others.
+
+The other oscillators then react through the Kuramoto coupling.
+
+This allows the player to experiment with how a single oscillator affects the collective system.
+
+---
+
+# Bat Personalities
+
+## Pulse
+
+```text
+Personality 0
+```
+
+The Pulse bat uses its phase to control pulsing movement and visual scale.
+
+Its behavior is strongly connected to:
+
+```js
+sin(theta)
+```
+
+---
+
+## Orbit
+
+```text
+Personality 1
+```
+
+The Orbit bat moves around its phase direction.
+
+Its movement angle is offset by approximately:
+
+```text
+π / 2
+```
+
+This creates an orbital movement pattern.
+
+---
+
+## Hunter
+
+```text
+Personality 2
+```
+
+The Hunter is more strongly influenced by the player's position.
+
+It combines:
+
+```text
+oscillator phase
++
+direction toward player
+```
+
+This creates a more aggressive behavior.
+
+---
+
+## Double Phase
+
+```text
+Personality 3
+```
+
+Uses:
+
+```js
+sin(2 * theta)
+```
+
+instead of only:
+
+```js
+sin(theta)
+```
+
+This creates behavior that repeats twice during a single oscillator cycle.
+
+---
+
+# Personality Influence
+
+The project uses:
+
+```js
+getPersonalityInfluence(type)
+```
+
+to determine how strongly different personalities react to the player.
+
+Approximate values:
+
+```text
+Pulse        → 0.8
+Orbit        → 0.45
+Hunter       → 1.25
+Double Phase → 0.7
+```
+
+These are design values.
+
+They are not part of the Kuramoto equation.
+
+---
+
+# Movement System
+
+The oscillator phase is mapped to movement.
+
+For example:
+
+```js
+movementAngle = actor.theta;
+```
+
+means that the actor's current phase determines its movement direction.
+
+Other personalities transform this angle.
+
+This creates a connection:
+
+```text
+Kuramoto phase
+      ↓
+movement angle
+      ↓
+bat movement
+```
+
+The oscillator therefore becomes the underlying controller for the enemy behavior.
+
+---
+
+# Attack System
+
+When a bat attacks:
+
+1. The bat calculates the direction toward the player.
+2. The direction is stored in `attackTheta`.
+3. `attacking` becomes `true`.
+4. The attack timer starts.
+5. The bat moves toward the player.
+6. Audio and visual effects are triggered.
+7. The attack finishes.
+8. The bat returns to normal oscillator behavior.
+
+The attack is a gameplay layer built on top of the oscillator.
+
+---
+
+# Phase Events
+
+Each actor can have an event associated with a phase.
+
+The project uses:
+
+```js
+actor.addEvent(0, callback);
+```
+
+The actor checks whether its phase crossed `0`.
+
+When it does:
+
+```text
+phase crossing
+      ↓
+event
+      ↓
+attack
+      ↓
+sound
+      ↓
+visual feedback
+```
+
+This makes the oscillator's cycle directly control gameplay events.
+
+---
+
+# Audio Variables
+
+The project creates one audio oscillator for every actor.
+
+The audio oscillator has:
+
+- Frequency
+- Amplitude
+- Waveform
+
+The actor's phase and personality determine how these values change.
+
+---
+
+# `getBaseFrequency()`
+
+This function gives each personality a different base audio frequency.
+
+For example:
+
+```text
+Pulse
+→ lower frequency range
+
+Orbit
+→ different frequency range
+
+Hunter
+→ another frequency range
+
+Double Phase
+→ higher frequency range
+```
+
+This makes each personality sonically recognizable.
+
+---
+
+# Important Audio Distinction
+
+The Kuramoto `omega` and audio frequency are different concepts.
+
+Kuramoto:
+
+```text
+omega
+→ radians per second
+```
+
+Audio:
+
+```text
+frequency
+→ Hertz
+```
+
+The project maps one to the other artistically.
+
+It is therefore a **sonification** rather than a physically accurate conversion.
+
+---
+
+# Visual System
+
+The visual system reads the oscillator state.
+
+Examples include:
+
+```text
+theta
+→ rotation
+
+sin(theta)
+→ pulsing
+
+sin(2theta)
+→ double-phase deformation
+
+energy
+→ size/intensity
+
+order parameter
+→ collective visualization
+```
+
+This makes the mathematical behavior visible.
+
+---
+
+# Collective Connections
+
+The project draws lines between actors when their phases are sufficiently similar.
+
+The process is approximately:
+
+```text
+compare phase A
+      +
+compare phase B
+      ↓
+calculate phase difference
+      ↓
+calculate similarity
+      ↓
+draw connection if similar enough
+```
+
+These lines are a visualization of synchronization.
+
+They do not create the synchronization themselves.
+
+The actual synchronization comes from the Kuramoto equation.
+
+---
+
+# Boundary System
+
+When a bat reaches the arena boundary, its position is constrained.
+
+The system can also modify its phase to reflect its movement direction.
+
+This is a gameplay rule.
+
+It is not part of the standard Kuramoto model.
+
+Because it changes `theta`, however, it can indirectly affect future synchronization.
+
+---
+
+# Reset System
+
+The reset function returns the game to its starting configuration.
+
+It resets:
+
+- Score
+- `K`
+- Frequency spread
+- Actor phases
+- Actor positions
+- Personalities
+- Attack states
+- Energy
+- Perturbations
+- Selection
+- Cooldowns
+- Player position
+- Collective state
+
+The personalities are restored using:
+
+```js
+actor.personality = i % 4;
+```
+
+This recreates the original personality distribution.
+
+---
+
+# Keyboard Controls
+
+The current version uses:
+
+```text
+W / S
+→ increase/decrease K
+
+A / D
+→ decrease/increase omega spread
+
+1
+→ Pulse
+
+2
+→ Orbit
+
+3
+→ Hunter
+
+4
+→ Double Phase
+
+R
+→ Reset
+
+H
+→ Show/hide help
+
+SPACE
+→ Global perturbation
+```
+
+The current code does **not** use the arrow keys.
+
+---
+
+# How the Complete System Works
+
+The project can be understood as several layers.
+
+## Layer 1 — Kuramoto
+
+The mathematical core:
+
+```text
+theta
+omega
+K
+phase coupling
+```
+
+↓
+
+## Layer 2 — Collective Behavior
+
+The system calculates:
+
+```text
+order parameter R
+```
+
+↓
+
+## Layer 3 — Game Behavior
+
+Phase controls:
+
+```text
+movement
+attacks
+events
+personalities
+```
+
+↓
+
+## Layer 4 — Player Interaction
+
+The player can:
+
+```text
+influence phases
+perturb actors
+perturb the whole system
+```
+
+↓
+
+## Layer 5 — Audio
+
+The oscillator state controls:
+
+```text
+frequency
+amplitude
+events
+collective sounds
+```
+
+↓
+
+## Layer 6 — Visuals
+
+The oscillator state controls:
+
+```text
+movement
+rotation
+size
+effects
+connections
+collective-state visualization
+```
+
+---
+
+# Overall System Diagram
+
+```text
+                 KURAMOTO SYSTEM
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+       Natural                  Coupling
+     Frequencies                   `K`
+          │                         │
+          └────────────┬────────────┘
+                       ↓
+                Oscillator Phase
+                    `theta`
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+        ↓              ↓              ↓
+    Movement        Events          Audio
+        │              │              │
+        ↓              ↓              ↓
+      Bats          Attacks       Sound Design
+        │
+        ↓
+     Gameplay
+
+                       │
+                       ↓
+              Order Parameter `R`
+                       │
+          ┌────────────┼────────────┐
+          ↓            ↓            ↓
+      Disorder      Partial       Stable
+                  Organization  Synchronization
+```
+
+---
+
+# Is the Kuramoto Implementation Correct?
+
+Yes.
+
+The core implementation correctly follows the standard finite-population Kuramoto model:
+
+```text
+dθᵢ/dt =
+    ωᵢ
+    +
+    (K/N)
+    Σ sin(θⱼ - θᵢ)
+```
+
+The project also correctly calculates the Kuramoto order parameter.
+
+However, the complete game is not a pure Kuramoto simulation because it introduces external controls and game mechanics.
+
+The most accurate description is:
+
+> **Kuramoto Bats is an interactive finite-population Kuramoto oscillator network where synchronization drives enemy behavior, gameplay, visuals, and sound, while player interaction acts as an external influence on the oscillator phases.**
+
+---
+
+# Main Parameters to Experiment With
+
+## Increase `K`
+
+```text
+K ↑
+```
+
+Makes the bats influence each other more strongly.
+
+Expected result:
+
+```text
+more synchronization
+```
+
+---
+
+## Decrease `K`
+
+```text
+K ↓
+```
+
+Makes the bats behave more independently.
+
+Expected result:
+
+```text
+more disorder
+```
+
+---
+
+## Increase `omegaSpread`
+
+```text
+omegaSpread ↑
+```
+
+Makes the natural frequencies more different.
+
+Expected result:
+
+```text
+harder synchronization
+```
+
+---
+
+## Decrease `omegaSpread`
+
+```text
+omegaSpread ↓
+```
+
+Makes the natural frequencies more similar.
+
+Expected result:
+
+```text
+easier synchronization
+```
+
+---
+
+# Final Project Summary
+
+**Kuramoto Bats** uses the Kuramoto synchronization model as the underlying system for an interactive game.
+
+The most important variables are:
+
+```text
+theta
+→ oscillator phase
+
+omega
+→ natural frequency
+
+K
+→ coupling strength
+
+omegaSpread
+→ difference between natural frequencies
+
+R / order
+→ synchronization level
+```
+
+The mathematical system controls the state of the bats.
+
+That state is then translated into:
+
+```text
+phase
+  ↓
+movement
+  ↓
+gameplay
+  ↓
+sound
+  ↓
+visuals
+```
+
+The player can interfere with the system, creating a feedback loop between the player and the collective oscillator network.
+
+The result is not simply a visualization of Kuramoto synchronization. It is a **game built around synchronization as a gameplay mechanic**.
