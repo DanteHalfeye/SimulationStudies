@@ -1,0 +1,265 @@
+---
+title: "Flow Fields"
+description: "A GPU-accelerated flow-field simulation exploring emergent movement, flocking, and audio-reactive behavior."
+---
+
+# Flow Fields
+
+### [Try the project here](https://dantehalfeye.github.io/FlowFields/)
+
+## Overview
+
+Flow Fields is a real-time particle simulation built with **Three.js**, **WebGPU**, and JavaScript.
+
+The project explores how large groups of autonomous agents can produce complex and organic movement by following a shared vector field while remaining individually simulated.
+
+The goal was to create a system where the agents are **independent**, but their movement collectively produces visually coherent patterns.
+
+## Core Idea
+
+Each agent determines its movement from several influences:
+
+- Flow-field direction
+- Separation from nearby agents
+- Alignment with surrounding agents
+- Cohesion with nearby agents
+- World boundaries
+- User interaction
+- Audio input
+
+Rather than explicitly defining the path of every agent, the flow field provides a directional structure that the agents interpret locally.
+
+This allows thousands of agents to move through the same environment while maintaining individual behavior.
+
+## Flow Field
+
+The world is divided into a three-dimensional grid.
+
+Each cell contains a vector representing the desired direction of movement at that location.
+
+An agent samples the flow field based on its current position and uses the resulting vector as one of the forces influencing its velocity.
+
+This creates a relationship between the global structure of the field and the local behavior of individual agents.
+
+The field is generated procedurally, allowing the movement pattern to continuously evolve instead of following a predefined path.
+
+## Agent Simulation
+
+The agents are simulated independently.
+
+Each agent maintains its own:
+
+- Position
+- Velocity
+- Acceleration
+
+The simulation combines multiple steering behaviors to determine the final movement.
+
+### Separation
+
+Agents avoid getting too close to one another.
+
+This prevents the entire population from collapsing into a single point and helps maintain spatial distribution.
+
+### Alignment
+
+Agents partially align their movement with nearby agents.
+
+This creates the characteristic directional coherence seen in flocking systems.
+
+### Cohesion
+
+Agents are influenced toward the local center of nearby agents.
+
+Together with separation and alignment, this produces emergent flocking behavior.
+
+### Flow Following
+
+The flow field provides the dominant environmental direction.
+
+This means that individual agents can remain autonomous while still producing large-scale organized movement.
+
+## Performance
+
+The project was designed around a large number of agents.
+
+The simulation can contain tens of thousands of agents, making performance an important part of the implementation.
+
+The architecture separates the major systems into independent modules:
+
+- `FlowField`
+- `AgentSimulation`
+- `AgentRenderer`
+- `AudioAnalyzer`
+- `CameraController`
+- `Effects`
+- `InputController`
+
+This separation makes it possible to modify the simulation, rendering, audio system, and interaction logic independently.
+
+## Rendering
+
+Three.js is used for rendering the simulation.
+
+The renderer is combined with post-processing effects including:
+
+- Unreal Bloom
+- Motion blur
+- Output processing
+- Dynamic fog
+- Emissive materials
+
+The visual presentation changes depending on the selected environment.
+
+## Visual Modes
+
+The simulation includes several visual modes designed around different environments.
+
+### Deep Space
+
+A space-inspired environment using cool blues, purples, and pinks.
+
+The agents form a fish-like swarm moving through a dark environment.
+
+### Deep Ocean
+
+A darker underwater environment with cyan and blue tones.
+
+The slower flow movement and increased atmospheric effects create a more fluid appearance.
+
+### Abyss
+
+A darker environment with pink and purple highlights.
+
+The agents use a more intense visual treatment with stronger bloom.
+
+### Plasma
+
+A highly energetic environment using warm yellow, orange, pink, and purple tones.
+
+The movement is faster and more reactive.
+
+### Organic
+
+A biological-inspired environment using green, cyan, and blue tones.
+
+The visual treatment emphasizes organic motion and cellular structures.
+
+## Audio Reactivity
+
+The simulation can respond to audio input.
+
+Audio analysis extracts frequency information and beat timing, allowing the simulation to react to music.
+
+Different parts of the simulation can respond to:
+
+- Bass intensity
+- Beat detection
+- Overall audio energy
+- BPM
+
+The BPM system estimates the tempo from detected beats and uses it to influence the movement speed of the agents.
+
+This creates a connection between the visual simulation and the rhythm of the music.
+
+## Interaction
+
+The simulation also supports user interaction.
+
+Interaction points can act as attractors or repulsors, temporarily influencing nearby agents.
+
+This allows the user to directly disturb the flow and observe how the flock responds.
+
+The interaction system demonstrates how a local change can propagate through a large population of autonomous agents.
+
+## Technical Challenges
+
+### Large Agent Counts
+
+Simulating tens of thousands of agents creates significant computational pressure.
+
+The project therefore required careful consideration of:
+
+- Neighbor searches
+- Grid-based spatial partitioning
+- Memory allocation
+- Rendering overhead
+- Per-frame calculations
+
+### Spatial Queries
+
+Agents need information about nearby agents for flocking behaviors.
+
+A spatial grid is used to reduce the amount of unnecessary neighbor checking.
+
+Instead of comparing every agent against every other agent, agents are organized into grid cells and primarily query nearby cells.
+
+This reduces the cost of local interactions.
+
+### Emergent Behavior
+
+Another challenge was balancing the different steering forces.
+
+If separation is too strong, the flock becomes fragmented.
+
+If cohesion is too strong, agents collapse together.
+
+If alignment is too strong, movement can become rigid.
+
+The flow-field force therefore needs to work together with the flocking behaviors rather than completely overriding them.
+
+## Development Goals
+
+The project was created to explore several areas of game and graphics programming:
+
+- Autonomous agent behavior
+- Steering behaviors
+- Flocking algorithms
+- Procedural vector fields
+- Real-time rendering
+- GPU-oriented simulation
+- Audio-reactive systems
+- Post-processing
+- Large-scale particle systems
+- Emergent behavior
+
+## What I Learned
+
+The project helped me understand how relatively simple local rules can generate complex global behavior.
+
+It also reinforced the importance of performance when working with large populations of simulated objects.
+
+One of the most interesting aspects of the project was seeing how changes to individual steering behaviors could dramatically alter the overall character of the swarm.
+
+## Technologies
+
+- JavaScript
+- Three.js
+- WebGPU
+- Vite
+- Web Audio API
+- GitHub Pages
+
+## Project Structure
+
+```text
+src/
+├── AgentRenderer.js
+├── AgentSimulation.js
+├── AudioAnalyzer.js
+├── CameraController.js
+├── Effects.js
+├── FlowField.js
+├── InputController.js
+├── MotionBlurPass.js
+├── config.js
+├── main.js
+└── palette.js
+```
+
+| **Criterion**                         | **Description**                                                                                                                                                                | **Grade**                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| **1. Compliance with the Assignment** | My instrument uses web technology, operates in real time, and allows me to interpret the chosen musical piece.                                                                 | 5 |
+| **2. Understanding and Verification** | I can explain and defend how the system is built, what the agents perceive, and how they calculate their actions. I can predict and verify changes when modifying a parameter. | 5                |
+| **3. Design and Intent**              | I can justify the selection and combination of behaviors and relate them to my musical interpretation.                                                                         | 5 |
+| **4. Human Interpretation**           | My score and controls allow me to conduct the system live and respond to its behavior.                                                                                         | 5        |
