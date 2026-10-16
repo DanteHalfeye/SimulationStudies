@@ -36,6 +36,7 @@ export default defineConfig({
 						{ label: 'Chapter 2: Forces', link: '/chapters/forces' },
 						{ label: 'Chapter 3: Oscilation', link: '/chapters/kuramoto' },
 						{ label: 'Chapter 5: flow fields', link: '/chapters/flowfields' },
+						{label: 'Words as Interaction', link: '/chapters/wordsasinteraction'}
 					],
 				},
 				{
